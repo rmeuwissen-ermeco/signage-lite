@@ -29,6 +29,10 @@ function generateDeviceToken(): string {
   return crypto.randomBytes(32).toString("hex"); // 64-karakter hex string
 }
 
+/**
+ * DEVICE REGISTRATIE & PAIRING
+ */
+
 // Device registreren (player-app start hiermee)
 app.post("/api/devices/register", async (req, res) => {
   try {
@@ -114,7 +118,6 @@ app.post("/api/players/pair", async (req, res) => {
 
     const now = new Date();
 
-    // Device zoeken op pairingCode, nog niet gekoppeld, niet verlopen
     const device = await prisma.device.findFirst({
       where: {
         pairingCode,
@@ -129,7 +132,6 @@ app.post("/api/players/pair", async (req, res) => {
       });
     }
 
-    // TODO: hier straks echte auth/tenant uit token halen
     const player = await prisma.player.create({
       data: {
         name: playerName,
@@ -161,7 +163,11 @@ app.post("/api/players/pair", async (req, res) => {
   }
 });
 
-// Admin: Tenants ophalen
+/**
+ * ADMIN: TENANTS
+ */
+
+// Tenants ophalen
 app.get("/api/admin/tenants", async (_req, res) => {
   try {
     const tenants = await prisma.tenant.findMany({
@@ -174,7 +180,7 @@ app.get("/api/admin/tenants", async (_req, res) => {
   }
 });
 
-// Admin: Tenant aanmaken
+// Tenant aanmaken
 app.post("/api/admin/tenants", async (req, res) => {
   try {
     const { name } = req.body as { name?: string };
@@ -193,7 +199,7 @@ app.post("/api/admin/tenants", async (req, res) => {
   }
 });
 
-// Admin: Tenant + alles eronder verwijderen
+// Tenant + alles eronder verwijderen (cascade)
 app.delete("/api/admin/tenants/:id", async (req, res) => {
   try {
     const tenantId = Number(req.params.id);
@@ -201,7 +207,6 @@ app.delete("/api/admin/tenants/:id", async (req, res) => {
       return res.status(400).json({ error: "Ongeldige tenant-id" });
     }
 
-    // Cascade: eerst alles eronder weggooien
     await prisma.$transaction([
       prisma.playlistItem.deleteMany({
         where: { playlist: { player: { tenantId } } },
@@ -233,7 +238,11 @@ app.delete("/api/admin/tenants/:id", async (req, res) => {
   }
 });
 
-// Admin: Alle players binnen een tenant ophalen
+/**
+ * ADMIN: PLAYERS
+ */
+
+// Alle players binnen een tenant
 app.get("/api/admin/tenants/:tenantId/players", async (req, res) => {
   try {
     const tenantId = Number(req.params.tenantId);
@@ -257,11 +266,14 @@ app.get("/api/admin/tenants/:tenantId/players", async (req, res) => {
   }
 });
 
-// Admin: Player aanmaken binnen tenant
+// Player aanmaken binnen tenant
 app.post("/api/admin/tenants/:tenantId/players", async (req, res) => {
   try {
     const tenantId = Number(req.params.tenantId);
-    const { name, location } = req.body;
+    const { name, location } = req.body as {
+      name?: string;
+      location?: string;
+    };
 
     if (!name) {
       return res.status(400).json({ error: "name is verplicht" });
@@ -282,7 +294,7 @@ app.post("/api/admin/tenants/:tenantId/players", async (req, res) => {
   }
 });
 
-// Admin: Player verwijderen (cascade player → playlist → items → device)
+// Player verwijderen (cascade: playlist → items → device)
 app.delete("/api/admin/players/:id", async (req, res) => {
   try {
     const playerId = Number(req.params.id);
@@ -312,7 +324,90 @@ app.delete("/api/admin/players/:id", async (req, res) => {
   }
 });
 
-// Admin: Media binnen een tenant ophalen
+// Admin: bestaande player koppelen via pairingCode
+app.post("/api/admin/players/:playerId/pair-with-code", async (req, res) => {
+  try {
+    const playerId = Number(req.params.playerId);
+    const { pairingCode } = req.body as { pairingCode?: string };
+
+    if (isNaN(playerId)) {
+      return res.status(400).json({ error: "Ongeldige player-id" });
+    }
+    if (!pairingCode) {
+      return res.status(400).json({ error: "pairingCode is verplicht" });
+    }
+
+    const player = await prisma.player.findUnique({
+      where: { id: playerId },
+    });
+    if (!player) {
+      return res.status(404).json({ error: "Player niet gevonden" });
+    }
+
+    const now = new Date();
+
+    const device = await prisma.device.findFirst({
+      where: {
+        pairingCode,
+        pairingExpires: { gt: now },
+        playerId: null,
+      },
+    });
+
+    if (!device) {
+      return res
+        .status(400)
+        .json({ error: "Ongeldige of verlopen pairingCode" });
+    }
+
+    const deviceToken = generateDeviceToken();
+
+    const updatedDevice = await prisma.device.update({
+      where: { id: device.id },
+      data: {
+        playerId,
+        deviceToken,
+        pairingCode: null,
+        pairingExpires: null,
+      },
+    });
+
+    return res.json({
+      playerId,
+      deviceId: updatedDevice.id,
+      deviceToken,
+    });
+  } catch (e) {
+    console.error("Fout in /api/admin/players/:playerId/pair-with-code:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
+// Eenvoudige admin-route: alle players ophalen (over tenants heen)
+app.get("/api/admin/players", async (_req, res) => {
+  try {
+    const players = await prisma.player.findMany({
+      include: {
+        tenant: true,
+        device: true,
+      },
+      orderBy: {
+        id: "asc",
+      },
+    });
+
+    res.json(players);
+  } catch (error) {
+    console.error("Fout in /api/admin/players:", error);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
+/**
+ * ADMIN: MEDIA
+ */
+
+// Media binnen een tenant ophalen
 app.get("/api/admin/tenants/:tenantId/media", async (req, res) => {
   try {
     const tenantId = Number(req.params.tenantId);
@@ -332,7 +427,7 @@ app.get("/api/admin/tenants/:tenantId/media", async (req, res) => {
   }
 });
 
-// Admin: Media aanmaken binnen tenant (URL-based, nog geen file-upload)
+// Media aanmaken binnen tenant (voor nu URL-based)
 app.post("/api/admin/tenants/:tenantId/media", async (req, res) => {
   try {
     const tenantId = Number(req.params.tenantId);
@@ -372,7 +467,7 @@ app.post("/api/admin/tenants/:tenantId/media", async (req, res) => {
   }
 });
 
-// Admin: Media verwijderen (incl. koppelingen in playlistitems)
+// Media verwijderen (incl. koppelingen in playlistitems)
 app.delete("/api/admin/media/:id", async (req, res) => {
   try {
     const mediaId = Number(req.params.id);
@@ -396,34 +491,16 @@ app.delete("/api/admin/media/:id", async (req, res) => {
   }
 });
 
-// 5) Eenvoudige admin-route: alle players ophalen
-app.get("/api/admin/players", async (_req, res) => {
-  try {
-    const players = await prisma.player.findMany({
-      include: {
-        tenant: true,
-        device: true,
-      },
-      orderBy: {
-        id: "asc",
-      },
-    });
+/**
+ * DEVICE: PLAYLIST OPVRAGEN
+ */
 
-    res.json(players);
-  } catch (error) {
-    console.error("Fout in /api/admin/players:", error);
-    res.status(500).json({ error: "Interne serverfout" });
-  }
-});
-
-// Playlist ophalen voor een gekoppeld device
 app.get(
   "/api/device/playlist",
   deviceAuth,
   async (req: DeviceRequest, res) => {
     try {
       const device = req.device!;
-      // Actieve playlist voor de player
       const playlist = await prisma.playlist.findFirst({
         where: {
           playerId: device.playerId,
@@ -435,7 +512,7 @@ app.get(
               media: true,
             },
             orderBy: {
-              sortOrder: "asc",
+              sortOrder: "asc", // veldnaam in Prisma-schema
             },
           },
         },
@@ -468,6 +545,230 @@ app.get(
   }
 );
 
+/**
+ * ADMIN: PLAYLISTS & PLAYLIST ITEMS
+ */
+
+// Playlists voor een player ophalen
+app.get("/api/admin/players/:playerId/playlists", async (req, res) => {
+  try {
+    const playerId = Number(req.params.playerId);
+    if (isNaN(playerId)) {
+      return res.status(400).json({ error: "Ongeldige player-id" });
+    }
+
+    const playlists = await prisma.playlist.findMany({
+      where: { playerId },
+      orderBy: { id: "asc" },
+    });
+
+    res.json(playlists);
+  } catch (e) {
+    console.error("GET playlists:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
+// Playlist aanmaken voor een player
+app.post("/api/admin/players/:playerId/playlists", async (req, res) => {
+  try {
+    const playerId = Number(req.params.playerId);
+    const { name } = req.body as { name?: string };
+
+    if (!name) {
+      return res.status(400).json({ error: "name is verplicht" });
+    }
+
+    const playlist = await prisma.playlist.create({
+      data: {
+        playerId,
+        name,
+        isActive: true,
+        version: 1,
+      },
+    });
+
+    res.status(201).json(playlist);
+  } catch (e) {
+    console.error("POST playlist:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
+// Playlist verwijderen
+app.delete("/api/admin/playlists/:id", async (req, res) => {
+  try {
+    const playlistId = Number(req.params.id);
+    if (isNaN(playlistId)) {
+      return res.status(400).json({ error: "Ongeldige playlist-id" });
+    }
+
+    await prisma.$transaction([
+      prisma.playlistItem.deleteMany({ where: { playlistId } }),
+      prisma.playlist.delete({ where: { id: playlistId } }),
+    ]);
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("DELETE playlist:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
+// Admin: playlist activeren (maakt andere playlists voor die player inactief)
+app.post("/api/admin/playlists/:id/activate", async (req, res) => {
+  try {
+    const playlistId = Number(req.params.id);
+    if (isNaN(playlistId)) {
+      return res.status(400).json({ error: "Ongeldige playlist-id" });
+    }
+
+    const playlist = await prisma.playlist.findUnique({
+      where: { id: playlistId },
+    });
+
+    if (!playlist) {
+      return res.status(404).json({ error: "Playlist niet gevonden" });
+    }
+
+    await prisma.$transaction([
+      // alle playlists voor deze player inactief
+      prisma.playlist.updateMany({
+        where: { playerId: playlist.playerId },
+        data: { isActive: false },
+      }),
+      // deze playlist actief + versie bump
+      prisma.playlist.update({
+        where: { id: playlistId },
+        data: {
+          isActive: true,
+          version: { increment: 1 },
+        },
+      }),
+    ]);
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("Fout in /api/admin/playlists/:id/activate:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
+// Items binnen playlist ophalen
+app.get("/api/admin/playlists/:playlistId/items", async (req, res) => {
+  try {
+    const playlistId = Number(req.params.playlistId);
+
+    const items = await prisma.playlistItem.findMany({
+      where: { playlistId },
+      include: { media: true },
+      orderBy: { sortOrder: "asc" },
+    });
+
+    res.json(items);
+  } catch (e) {
+    console.error("GET playlist items:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
+// Item toevoegen aan playlist
+app.post("/api/admin/playlists/:playlistId/items", async (req, res) => {
+  try {
+    const playlistId = Number(req.params.playlistId);
+    const { mediaId, durationSec } = req.body as {
+      mediaId?: number;
+      durationSec?: number;
+    };
+
+    if (!mediaId) {
+      return res.status(400).json({ error: "mediaId is verplicht" });
+    }
+
+    const max = await prisma.playlistItem.aggregate({
+      where: { playlistId },
+      _max: { sortOrder: true },
+    });
+
+    const newSortOrder = (max._max.sortOrder ?? 0) + 1;
+
+    const item = await prisma.playlistItem.create({
+      data: {
+        playlistId,
+        mediaId,
+        durationSec: durationSec ?? 10,
+        sortOrder: newSortOrder,
+      },
+    });
+
+    await prisma.playlist.update({
+      where: { id: playlistId },
+      data: { version: { increment: 1 } },
+    });
+
+    res.status(201).json(item);
+  } catch (e) {
+    console.error("POST playlist item:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
+// Playlist-item verwijderen
+app.delete("/api/admin/playlist-items/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const item = await prisma.playlistItem.findUnique({ where: { id } });
+    if (!item) {
+      return res.status(404).json({ error: "Item bestaat niet" });
+    }
+
+    await prisma.playlistItem.delete({ where: { id } });
+
+    await prisma.playlist.update({
+      where: { id: item.playlistId },
+      data: { version: { increment: 1 } },
+    });
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("DELETE playlist-item:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
+// Playlist reorderen
+app.put("/api/admin/playlists/:playlistId/reorder", async (req, res) => {
+  try {
+    const playlistId = Number(req.params.playlistId);
+    const { order } = req.body as {
+      order: { id: number; sortOrder: number }[];
+    };
+
+    if (!Array.isArray(order)) {
+      return res.status(400).json({ error: "order moet een array zijn" });
+    }
+
+    await prisma.$transaction(
+      order.map((item) =>
+        prisma.playlistItem.update({
+          where: { id: item.id },
+          data: { sortOrder: item.sortOrder },
+        })
+      )
+    );
+
+    await prisma.playlist.update({
+      where: { id: playlistId },
+      data: { version: { increment: 1 } },
+    });
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("REORDER playlist:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server luistert op http://localhost:${port}`);

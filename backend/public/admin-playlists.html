@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Playlist beheer</title>
+
+  <style>
+    body {
+      background: #111;
+      color: #f5f5f5;
+      font-family: system-ui;
+    }
+    header {
+      background: #222;
+      padding: 10px 16px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    header a {
+      color: #f5f5f5;
+      text-decoration: none;
+    }
+    main {
+      padding: 16px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #333;
+    }
+    button {
+      background: #2a2a2a;
+      color: #fff;
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+    button.danger {
+      border-color: #a33;
+      color: #fbb;
+    }
+    input, select {
+      background: #111;
+      color: #fff;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 4px 8px;
+    }
+    h2 {
+      margin-top: 24px;
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <a href="/admin.html">← Admin</a>
+  <h1>Playlists</h1>
+</header>
+
+<main>
+
+  <h2>1. Tenant en player</h2>
+  <label>Tenant:</label>
+  <select id="tenantSelect"></select>
+
+  <br><br>
+
+  <label>Player:</label>
+  <select id="playerSelect"></select>
+
+  <h2>2. Playlists</h2>
+
+  <input type="text" id="newPlaylistName" placeholder="Naam nieuwe playlist…" />
+  <button onclick="createPlaylist()">Aanmaken</button>
+
+  <table id="playlistTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Naam</th>
+        <th>Versie</th>
+        <th>Status</th>
+        <th>Acties</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+</main>
+
+<script>
+async function loadTenants() {
+  const res = await fetch("/api/admin/tenants");
+  const tenants = await res.json();
+  const select = document.getElementById("tenantSelect");
+
+  select.innerHTML = "";
+  tenants.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t.id;
+    opt.textContent = t.name;
+    select.appendChild(opt);
+  });
+
+  select.onchange = loadPlayers;
+  loadPlayers();
+}
+
+async function loadPlayers() {
+  const tenantId = document.getElementById("tenantSelect").value;
+  if (!tenantId) return;
+
+  const res = await fetch(`/api/admin/tenants/${tenantId}/players`);
+  const players = await res.json();
+
+  const select = document.getElementById("playerSelect");
+  select.innerHTML = "";
+
+  players.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.name;
+    select.appendChild(opt);
+  });
+
+  select.onchange = loadPlaylists;
+  loadPlaylists();
+}
+
+async function loadPlaylists() {
+  const playerId = document.getElementById("playerSelect").value;
+  if (!playerId) return;
+
+  const res = await fetch(`/api/admin/players/${playerId}/playlists`);
+  const playlists = await res.json();
+
+  const tbody = document.querySelector("#playlistTable tbody");
+  tbody.innerHTML = "";
+
+  playlists.forEach(pl => {
+    const row = document.createElement("tr");
+
+    const tenantId = document.getElementById("tenantSelect").value;
+
+    const isActiveLabel = pl.isActive ? "✔ actief" : "—";
+
+    row.innerHTML = `
+      <td>${pl.id}</td>
+      <td>${pl.name}</td>
+      <td>${pl.version}</td>
+      <td>${isActiveLabel}</td>
+      <td>
+        <button onclick="openItems(${pl.id}, ${tenantId}, ${pl.playerId})">
+          Items
+        </button>
+        <button onclick="activatePlaylist(${pl.id})">
+          Activeren
+        </button>
+        <button class="danger" onclick="deletePlaylist(${pl.id})">
+          Verwijderen
+        </button>
+      </td>
+    `;
+
+
+    tbody.appendChild(row);
+  });
+}
+
+async function createPlaylist() {
+  const name = document.getElementById("newPlaylistName").value;
+  const playerId = document.getElementById("playerSelect").value;
+
+  if (!name) return alert("Naam is verplicht.");
+  if (!playerId) return alert("Selecteer een player.");
+
+  await fetch(`/api/admin/players/${playerId}/playlists`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name })
+  });
+
+  document.getElementById("newPlaylistName").value = "";
+  loadPlaylists();
+}
+
+async function deletePlaylist(id) {
+  if (!confirm("Playlist verwijderen?")) return;
+
+  await fetch(`/api/admin/playlists/${id}`, { method: "DELETE" });
+  loadPlaylists();
+}
+
+async function activatePlaylist(id) {
+  const res = await fetch(`/api/admin/playlists/${id}/activate`, {
+    method: "POST"
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert("Activeren mislukt: " + (err.error || res.status));
+    return;
+  }
+
+  loadPlaylists();
+}
+
+function openItems(playlistId, tenantId, playerId) {
+  window.location.href =
+    `/admin-playlist-items.html?playlistId=${playlistId}&tenantId=${tenantId}&playerId=${playerId}`;
+}
+
+loadTenants();
+</script>
+
+</body>
+</html>

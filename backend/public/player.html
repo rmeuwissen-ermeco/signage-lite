@@ -3,297 +3,443 @@
 <head>
   <meta charset="UTF-8" />
   <title>Signage Lite Player</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    * {
-      box-sizing: border-box;
+    html, body {
       margin: 0;
       padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    body {
-      background: #111;
+      width: 100%;
+      height: 100%;
+      background: #000;
       color: #f5f5f5;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    header {
-      padding: 12px 20px;
-      background: #222;
-      font-size: 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    main {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       overflow: hidden;
     }
-    #pairing-screen, #playback-screen {
+    #pairing, #playback, #error {
       position: absolute;
       inset: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      transition: opacity 0.4s ease;
+      text-align: center;
     }
-    #pairing-screen.hidden,
-    #playback-screen.hidden {
-      opacity: 0;
-      pointer-events: none;
+    #pairing {
+      background: radial-gradient(circle at top, #333 0, #000 60%);
+    }
+    #pairing h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
     }
     #pairing-code {
-      font-size: 80px;
-      letter-spacing: 16px;
-      font-weight: 700;
-      margin-bottom: 20px;
+      font-size: 72px;
+      letter-spacing: 8px;
+      font-weight: 600;
+      margin: 16px 0;
     }
-    #pairing-info {
+    #pairing-timer {
       font-size: 18px;
-      opacity: 0.8;
-      text-align: center;
-      max-width: 600px;
-      line-height: 1.4;
+      margin-top: 8px;
+      color: #ccc;
     }
-    #status {
-      font-size: 14px;
-      opacity: 0.7;
-      margin-top: 20px;
+    #pairing small {
+      margin-top: 16px;
+      color: #aaa;
     }
-    #content-image {
+
+    #playback {
+      background: #000;
+      align-items: stretch;
+      justify-content: stretch;
+    }
+    #media-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+    #media-container img,
+    #media-container video {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
+      background: #000;
+    }
+
+    #debug-overlay {
+      position: absolute;
+      left: 8px;
+      bottom: 8px;
+      background: rgba(0,0,0,0.5);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #ccc;
+    }
+
+    #error {
+      background: #300;
+      color: #fee;
+      padding: 20px;
     }
   </style>
 </head>
 <body>
-<header>
-  <div>Signage Lite Player (demo)</div>
-  <div id="header-status">Opstarten…</div>
-</header>
 
-<main>
-  <!-- Pairing-scherm -->
-  <section id="pairing-screen">
-    <div id="pairing-code">------</div>
-    <div id="pairing-info">
-      Voer deze code in op het beheerscherm om dit device te koppelen.
-    </div>
-    <div id="status"></div>
-  </section>
+<div id="pairing">
+  <h1>Signage Lite Player</h1>
+  <p>Voer deze koppelingcode in bij de beheeromgeving:</p>
+  <div id="pairing-code">------</div>
+  <div id="pairing-timer">Nog --:-- min geldig</div>
+  <small>De code wordt automatisch vernieuwd na afloop.<br>
+  Dit scherm controleert elke paar seconden of de player gekoppeld is.</small>
+</div>
 
-  <!-- Playback-scherm -->
-  <section id="playback-screen" class="hidden">
-    <img id="content-image" src="" alt="" />
-  </section>
-</main>
+<div id="playback" style="display:none;">
+  <div id="media-container"></div>
+  <div id="debug-overlay">
+    <span id="debug-status">Laden…</span>
+  </div>
+</div>
+
+<div id="error" style="display:none;">
+  <h2>Verbinding verloren</h2>
+  <p id="error-message"></p>
+  <p>Probeer de pagina te vernieuwen of controleer de server.</p>
+</div>
 
 <script>
-  const headerStatusEl = document.getElementById("header-status");
-  const pairingScreenEl = document.getElementById("pairing-screen");
-  const playbackScreenEl = document.getElementById("playback-screen");
-  const pairingCodeEl = document.getElementById("pairing-code");
-  const statusEl = document.getElementById("status");
-  const contentImageEl = document.getElementById("content-image");
+const API_BASE = "";
+const POLL_STATUS_INTERVAL_MS = 3000;
+const POLL_PLAYLIST_INTERVAL_MS = 15000;
 
-  let deviceId = null;
-  let deviceToken = null;
-  let pollInterval = null;
-  let playbackTimeout = null;
-  let countdownInterval = null;
-  let expiresAtTimestamp = null;
+let registerInterval = null;
+let statusInterval = null;
+let playlistInterval = null;
+let pairingTimerInterval = null;
+let slideTimeout = null;
 
-  function stopCountdown() {
-    if (countdownInterval) clearInterval(countdownInterval);
-    countdownInterval = null;
+let currentDeviceId = null;
+let currentDeviceToken = null;
+let currentPlayerId = null;
+let currentPlaylistVersion = null;
+let currentItems = [];
+
+let pairingExpiresAt = null;
+
+const pairingView = document.getElementById("pairing");
+const playbackView = document.getElementById("playback");
+const errorView = document.getElementById("error");
+const pairingCodeEl = document.getElementById("pairing-code");
+const pairingTimerEl = document.getElementById("pairing-timer");
+const errorMessageEl = document.getElementById("error-message");
+const mediaContainer = document.getElementById("media-container");
+const debugStatusEl = document.getElementById("debug-status");
+
+function showPairing() {
+  pairingView.style.display = "flex";
+  playbackView.style.display = "none";
+  errorView.style.display = "none";
+}
+
+function showPlayback() {
+  pairingView.style.display = "none";
+  playbackView.style.display = "flex";
+  errorView.style.display = "none";
+}
+
+function showError(msg) {
+  pairingView.style.display = "none";
+  playbackView.style.display = "none";
+  errorView.style.display = "flex";
+  errorMessageEl.textContent = msg;
+}
+
+function saveAuth() {
+  const data = {
+    deviceId: currentDeviceId,
+    deviceToken: currentDeviceToken,
+    playerId: currentPlayerId,
+  };
+  localStorage.setItem("signageLiteDevice", JSON.stringify(data));
+}
+
+function loadAuth() {
+  try {
+    const raw = localStorage.getItem("signageLiteDevice");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (_) {
+    return null;
+  }
+}
+
+function clearIntervals() {
+  if (registerInterval) {
+    clearInterval(registerInterval);
+    registerInterval = null;
+  }
+  if (statusInterval) {
+    clearInterval(statusInterval);
+    statusInterval = null;
+  }
+  if (playlistInterval) {
+    clearInterval(playlistInterval);
+    playlistInterval = null;
+  }
+  if (pairingTimerInterval) {
+    clearInterval(pairingTimerInterval);
+    pairingTimerInterval = null;
+  }
+}
+
+function clearSlideshow() {
+  if (slideTimeout) {
+    clearTimeout(slideTimeout);
+    slideTimeout = null;
+  }
+  mediaContainer.innerHTML = "";
+}
+
+function startPairingFlow() {
+  clearIntervals();
+  clearSlideshow();
+  showPairing();
+
+  pairingCodeEl.textContent = "------";
+  pairingTimerEl.textContent = "Nog --:-- min geldig";
+
+  registerDevice().catch(err => {
+    console.error("Fout bij registerDevice:", err);
+    showError("Kan geen koppelingcode ophalen van de server.");
+  });
+}
+
+function updatePairingTimer() {
+  if (!pairingExpiresAt) return;
+  const now = Date.now();
+  const diff = pairingExpiresAt - now;
+
+  if (diff <= 0) {
+    pairingTimerEl.textContent = "Code verlopen, nieuwe code aanvragen…";
+    if (pairingTimerInterval) {
+      clearInterval(pairingTimerInterval);
+      pairingTimerInterval = null;
+    }
+    startPairingFlow();
+    return;
   }
 
-  function updateCountdown() {
-    if (!expiresAtTimestamp || !deviceId) return;
+  const totalSeconds = Math.floor(diff / 1000);
+  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  pairingTimerEl.textContent = `Nog ${minutes}:${seconds} min geldig`;
+}
 
-    const now = Date.now();
-    const remainingMs = expiresAtTimestamp - now;
+async function registerDevice() {
+  const platform = "browser";
+  const deviceName = navigator.userAgent || "Browser player";
 
-    if (remainingMs <= 0) {
-      // Tijd is op: oude registratie loslaten en nieuwe code ophalen
-      stopCountdown();
-      stopPollingStatus();
+  const res = await fetch(`${API_BASE}/api/devices/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ platform, deviceName })
+  });
 
-      headerStatusEl.textContent = "Pairing code verlopen, nieuwe code ophalen…";
-      statusEl.textContent = "Nieuwe pairing code wordt gegenereerd…";
+  if (!res.ok) {
+    throw new Error("Register mislukt: " + res.status);
+  }
 
-      deviceId = null;
-      deviceToken = null;
+  const data = await res.json();
+  currentDeviceId = data.deviceId;
+  pairingCodeEl.textContent = data.pairingCode;
 
-      // Heel even wachten zodat de gebruiker de melding kan zien
-      setTimeout(() => {
-        registerDevice();
-      }, 1000);
+  pairingExpiresAt = new Date(data.expiresAt).getTime();
 
+  if (pairingTimerInterval) {
+    clearInterval(pairingTimerInterval);
+  }
+  pairingTimerInterval = setInterval(updatePairingTimer, 1000);
+  updatePairingTimer();
+
+  if (statusInterval) {
+    clearInterval(statusInterval);
+  }
+  statusInterval = setInterval(checkDeviceStatus, POLL_STATUS_INTERVAL_MS);
+  await checkDeviceStatus();
+}
+
+async function checkDeviceStatus() {
+  if (!currentDeviceId) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/devices/${currentDeviceId}/status`);
+    if (!res.ok) {
+      console.warn("Status fout:", res.status);
+      return;
+    }
+    const data = await res.json();
+
+    if (data.status === "PAIRED") {
+      currentPlayerId = data.playerId;
+      currentDeviceToken = data.deviceToken;
+      saveAuth();
+      startPlaybackFlow();
+    }
+  } catch (err) {
+    console.error("Fout bij status-check:", err);
+  }
+}
+
+function authHeaders() {
+  return {
+    "Authorization": `Bearer ${currentDeviceToken}`,
+  };
+}
+
+async function fetchPlaylist() {
+  try {
+    const res = await fetch(`${API_BASE}/api/device/playlist`, {
+      headers: authHeaders(),
+    });
+
+    if (res.status === 401) {
+      console.warn("DeviceToken ongeldig, opnieuw pairen.");
+      localStorage.removeItem("signageLiteDevice");
+      startPairingFlow();
       return;
     }
 
-    const totalSeconds = Math.floor(remainingMs / 1000);
-    const mins = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-    const secs = String(totalSeconds % 60).padStart(2, "0");
-
-    statusEl.textContent = `Code verloopt over ${mins}:${secs} · Device-ID: ${deviceId}`;
-  }
-
-  function startCountdown() {
-    stopCountdown();
-    updateCountdown();            // direct eerste keer tonen
-    countdownInterval = setInterval(updateCountdown, 1000);
-  }
-
-  async function registerDevice() {
-    headerStatusEl.textContent = "Device registreren…";
-
-    try {
-      const res = await fetch("/api/devices/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          platform: "web-demo",
-          deviceName: navigator.userAgent
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Onbekende fout bij register");
-      }
-
-      const data = await res.json();
-      deviceId = data.deviceId;
-      pairingCodeEl.textContent = data.pairingCode;
-
-      expiresAtTimestamp = new Date(data.expiresAt).getTime();
-
-      headerStatusEl.textContent = "Wachten op koppeling…";
-      startCountdown();
-      startPollingStatus();
-    } catch (e) {
-      console.error(e);
-      headerStatusEl.textContent = "Fout bij registreren";
-      statusEl.textContent = "Kon device niet registreren. Zie console.";
-    }
-  }
-
-  async function checkStatusOnce() {
-    if (!deviceId) return;
-
-    try {
-      const res = await fetch(`/api/devices/${deviceId}/status`);
-      if (!res.ok) {
-        throw new Error("Status request faalde");
-      }
-      const data = await res.json();
-
-      if (data.status === "PENDING") {
-        headerStatusEl.textContent = "Wachten op koppeling…";
-      } else if (data.status === "PAIRED") {
-        headerStatusEl.textContent = "Gekoppeld";
-        deviceToken = data.deviceToken;
-        stopPollingStatus();
-        stopCountdown();
-        showPlayback();
-        await loadAndPlayPlaylist();
-      } else if (data.status === "NOT_FOUND") {
-        headerStatusEl.textContent = "Device niet gevonden";
-      }
-    } catch (e) {
-      console.error(e);
-      headerStatusEl.textContent = "Fout bij status-poll";
-    }
-  }
-
-  function startPollingStatus() {
-    if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(checkStatusOnce, 3000);
-    checkStatusOnce(); // meteen een keer
-  }
-
-  function stopPollingStatus() {
-    if (pollInterval) clearInterval(pollInterval);
-    pollInterval = null;
-  }
-
-  function showPlayback() {
-    pairingScreenEl.classList.add("hidden");
-    playbackScreenEl.classList.remove("hidden");
-  }
-
-  async function loadAndPlayPlaylist() {
-    if (!deviceToken) return;
-
-    headerStatusEl.textContent = "Playlist ophalen…";
-
-    try {
-      const res = await fetch("/api/device/playlist", {
-        headers: {
-          Authorization: `Bearer ${deviceToken}`
-        }
-      });
-
-      if (!res.ok) {
-        throw new Error("Playlist request faalde");
-      }
-
-      const data = await res.json();
-      const items = data.items || [];
-
-      if (!items.length) {
-        headerStatusEl.textContent = "Geen items in playlist";
-        return;
-      }
-
-      headerStatusEl.textContent = `Playlist v${data.version} · ${items.length} items`;
-      startPlaybackLoop(items);
-    } catch (e) {
-      console.error(e);
-      headerStatusEl.textContent = "Fout bij ophalen playlist";
-    }
-  }
-
-  function startPlaybackLoop(items) {
-    let index = 0;
-
-    function showNext() {
-      const item = items[index];
-      index = (index + 1) % items.length;
-
-      if (item.type === "IMAGE") {
-        contentImageEl.style.display = "block";
-        contentImageEl.src = item.url;
-      } else {
-        contentImageEl.style.display = "block";
-        contentImageEl.src = "";
-        headerStatusEl.textContent = "Videotype nog niet geïmplementeerd";
-      }
-
-      const durationMs = (item.durationSec || 10) * 1000;
-
-      if (playbackTimeout) clearTimeout(playbackTimeout);
-      playbackTimeout = setTimeout(showNext, durationMs);
+    if (!res.ok) {
+      console.warn("Playlist fout:", res.status);
+      return;
     }
 
-    if (playbackTimeout) clearTimeout(playbackTimeout);
-    showNext();
+    const data = await res.json();
+
+    debugStatusEl.textContent = `Playlist v${data.version} — items: ${data.items.length}`;
+
+    if (currentPlaylistVersion !== data.version) {
+      currentPlaylistVersion = data.version;
+      currentItems = data.items || [];
+      restartSlideshow();
+    }
+  } catch (err) {
+    console.error("Fout bij ophalen playlist:", err);
+    debugStatusEl.textContent = "Fout bij playlist ophalen";
+  }
+}
+
+function restartSlideshow() {
+  clearSlideshow();
+
+  if (!currentItems || currentItems.length === 0) {
+    const msg = document.createElement("div");
+    msg.textContent = "Geen content beschikbaar voor deze player.";
+    msg.style.fontSize = "24px";
+    msg.style.color = "#888";
+    mediaContainer.appendChild(msg);
+    debugStatusEl.textContent = "Geen items in playlist";
+    return;
   }
 
-  window.addEventListener("load", () => {
-    registerDevice();
-  });
+  runSlideLoop(0);
+}
+
+function runSlideLoop(index) {
+  clearSlideshow();
+
+  if (!currentItems || currentItems.length === 0) {
+    debugStatusEl.textContent = "Geen items in playlist";
+    return;
+  }
+
+  const itemIndex = index % currentItems.length;
+  const item = currentItems[itemIndex];
+
+  const durationMs =
+    item && item.durationSec && item.durationSec > 0
+      ? item.durationSec * 1000
+      : 10000;
+
+  debugStatusEl.textContent =
+    `Slide ${itemIndex + 1}/${currentItems.length} — ` +
+    `${item.type} — ${item.durationSec || 10}s`;
+
+  if (!item) {
+    slideTimeout = setTimeout(() => runSlideLoop(itemIndex + 1), durationMs);
+    return;
+  }
+
+  if (item.type === "IMAGE") {
+    const img = document.createElement("img");
+    img.src = item.url;
+    mediaContainer.appendChild(img);
+
+    slideTimeout = setTimeout(() => {
+      runSlideLoop(itemIndex + 1);
+    }, durationMs);
+  } else if (item.type === "VIDEO") {
+    const video = document.createElement("video");
+    video.src = item.url;
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    mediaContainer.appendChild(video);
+
+    let timeoutHandle = setTimeout(() => {
+      runSlideLoop(itemIndex + 1);
+    }, durationMs);
+
+    slideTimeout = timeoutHandle;
+
+    const next = () => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+      runSlideLoop(itemIndex + 1);
+    };
+
+    video.addEventListener("ended", next);
+    video.addEventListener("error", () => {
+      console.warn("Videofout, ga naar volgende item");
+      next();
+    });
+  } else {
+    console.warn("Onbekend itemtype:", item.type);
+    slideTimeout = setTimeout(() => {
+      runSlideLoop(itemIndex + 1);
+    }, durationMs);
+  }
+}
+
+function startPlaybackFlow() {
+  clearIntervals();
+  clearSlideshow();
+  showPlayback();
+
+  fetchPlaylist();
+  playlistInterval = setInterval(fetchPlaylist, POLL_PLAYLIST_INTERVAL_MS);
+}
+
+function init() {
+  const auth = loadAuth();
+  if (auth && auth.deviceId && auth.deviceToken) {
+    currentDeviceId = auth.deviceId;
+    currentDeviceToken = auth.deviceToken;
+    currentPlayerId = auth.playerId || null;
+    showPlayback();
+    fetchPlaylist();
+    playlistInterval = setInterval(fetchPlaylist, POLL_PLAYLIST_INTERVAL_MS);
+  } else {
+    startPairingFlow();
+  }
+}
+
+init();
 </script>
 
 </body>
 </html>
-

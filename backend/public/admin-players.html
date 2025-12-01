@@ -2,8 +2,8 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <title>Signage Lite Admin – Players</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Players beheer</title>
+
   <style>
     body {
       background: #111;
@@ -17,6 +17,10 @@
       display: flex;
       gap: 12px;
       align-items: center;
+    }
+    header a {
+      color: #f5f5f5;
+      text-decoration: none;
     }
     main {
       padding: 16px;
@@ -44,126 +48,182 @@
       border-color: #a33;
       color: #fbb;
     }
-    input {
+    input, select {
       background: #111;
       color: #fff;
       border: 1px solid #333;
       border-radius: 4px;
       padding: 4px 8px;
     }
+    h2 {
+      margin-top: 24px;
+      margin-bottom: 6px;
+    }
   </style>
 </head>
+
 <body>
 
 <header>
-  <a href="/admin-tenants.html" style="color:#9cf; text-decoration:none;">← Tenants</a>
-  <select id="tenant-select"></select>
-  <button id="reload-btn">Players laden</button>
+  <a href="/admin.html">← Admin</a>
+  <h1>Players</h1>
 </header>
 
 <main>
-  <div id="status">Kies een tenant.</div>
+  <h2>1. Tenant & nieuwe player</h2>
 
-  <form id="player-form" style="margin-top:20px; display:flex; gap:8px;">
-    <input id="player-name" placeholder="Player naam" required />
-    <input id="player-location" placeholder="Locatie (optioneel)" />
-    <button type="submit">Toevoegen</button>
-  </form>
+  <label>Tenant:</label>
+  <select id="tenantSelect"></select>
 
-  <table>
+  <br><br>
+
+  <label>Naam nieuwe player:</label>
+  <input type="text" id="newPlayerName" placeholder="Naam…" />
+  <label>Locatie:</label>
+  <input type="text" id="newPlayerLocation" placeholder="Locatie…" />
+  <button onclick="createPlayer()">Player aanmaken</button>
+
+  <h2>2. Bestaande players</h2>
+
+  <table id="playersTable">
     <thead>
       <tr>
         <th>ID</th>
         <th>Naam</th>
         <th>Locatie</th>
         <th>Device</th>
+        <th>Pairing</th>
         <th>Acties</th>
       </tr>
     </thead>
-    <tbody id="player-tbody"></tbody>
+    <tbody></tbody>
   </table>
 </main>
 
 <script>
-  const tenantSelect = document.getElementById("tenant-select");
-  const statusEl = document.getElementById("status");
-  const tbodyEl = document.getElementById("player-tbody");
-  const reloadBtn = document.getElementById("reload-btn");
-  const form = document.getElementById("player-form");
+async function loadTenants() {
+  const res = await fetch("/api/admin/tenants");
+  const tenants = await res.json();
+  const select = document.getElementById("tenantSelect");
 
-  async function loadTenants() {
-    const res = await fetch("/api/admin/tenants");
-    const tenants = await res.json();
-    tenantSelect.innerHTML = "";
-    tenants.forEach(t => {
-      const opt = document.createElement("option");
-      opt.value = t.id;
-      opt.textContent = `${t.id} – ${t.name}`;
-      tenantSelect.appendChild(opt);
-    });
-    if (tenants.length) loadPlayers();
-  }
-
-  async function loadPlayers() {
-    const tenantId = tenantSelect.value;
-    if (!tenantId) return;
-
-    statusEl.textContent = "Players laden…";
-
-    const res = await fetch(`/api/admin/tenants/${tenantId}/players`);
-    const players = await res.json();
-
-    tbodyEl.innerHTML = "";
-
-    players.forEach(p => {
-      const tr = document.createElement("tr");
-
-      const deviceInfo = p.device ? p.device.deviceName : "–";
-
-      tr.innerHTML = `
-        <td>${p.id}</td>
-        <td>${p.name}</td>
-        <td>${p.location || "–"}</td>
-        <td>${deviceInfo}</td>
-        <td><button class="danger" data-id="${p.id}">Delete</button></td>
-      `;
-
-      const delBtn = tr.querySelector("button");
-      delBtn.addEventListener("click", async () => {
-        if (!confirm(`Player "${p.name}" (#${p.id}) verwijderen?`)) return;
-        await fetch(`/api/admin/players/${p.id}`, { method: "DELETE" });
-        loadPlayers();
-      });
-
-      tbodyEl.appendChild(tr);
-    });
-
-    statusEl.textContent = `${players.length} player(s) geladen.`;
-  }
-
-  form.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    const tenantId = tenantSelect.value;
-    const name = document.getElementById("player-name").value;
-    const location = document.getElementById("player-location").value;
-
-    await fetch(`/api/admin/tenants/${tenantId}/players`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, location }),
-    });
-
-    document.getElementById("player-name").value = "";
-    document.getElementById("player-location").value = "";
-    loadPlayers();
+  select.innerHTML = "";
+  tenants.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t.id;
+    opt.textContent = t.name;
+    select.appendChild(opt);
   });
 
-  reloadBtn.addEventListener("click", loadPlayers);
-  tenantSelect.addEventListener("change", loadPlayers);
+  select.onchange = loadPlayers;
+  loadPlayers();
+}
 
-  window.onload = loadTenants;
+async function loadPlayers() {
+  const tenantId = document.getElementById("tenantSelect").value;
+  if (!tenantId) return;
+
+  const res = await fetch(`/api/admin/tenants/${tenantId}/players`);
+  const players = await res.json();
+
+  const tbody = document.querySelector("#playersTable tbody");
+  tbody.innerHTML = "";
+
+  players.forEach(p => {
+    const row = document.createElement("tr");
+
+    let deviceInfo = "—";
+    if (p.device) {
+      deviceInfo = `${p.device.platform || "device"} — ${
+        p.device.deviceName || "naam onbekend"
+      }`;
+    }
+
+    row.innerHTML = `
+      <td>${p.id}</td>
+      <td>${p.name}</td>
+      <td>${p.location || ""}</td>
+      <td>${deviceInfo}</td>
+      <td>
+        <input
+          type="text"
+          id="pairCode-${p.id}"
+          placeholder="code"
+          style="width:80px;"
+          maxlength="6"
+        />
+        <button onclick="pairPlayer(${p.id})">Koppelen</button>
+      </td>
+      <td>
+        <button class="danger" onclick="deletePlayer(${p.id})">Verwijderen</button>
+      </td>
+    `;
+
+    tbody.appendChild(row);
+  });
+}
+
+async function createPlayer() {
+  const tenantId = document.getElementById("tenantSelect").value;
+  const name = document.getElementById("newPlayerName").value;
+  const location = document.getElementById("newPlayerLocation").value;
+
+  if (!tenantId) {
+    alert("Geen tenant geselecteerd.");
+    return;
+  }
+  if (!name) {
+    alert("Naam is verplicht.");
+    return;
+  }
+
+  await fetch(`/api/admin/tenants/${tenantId}/players`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, location }),
+  });
+
+  document.getElementById("newPlayerName").value = "";
+  document.getElementById("newPlayerLocation").value = "";
+  loadPlayers();
+}
+
+async function deletePlayer(id) {
+  if (!confirm("Player verwijderen?")) return;
+
+  await fetch(`/api/admin/players/${id}`, {
+    method: "DELETE",
+  });
+
+  loadPlayers();
+}
+
+async function pairPlayer(playerId) {
+  const input = document.getElementById(`pairCode-${playerId}`);
+  const code = input.value.trim();
+
+  if (!code) {
+    alert("Voer een pairing code in.");
+    return;
+  }
+
+  const res = await fetch(`/api/admin/players/${playerId}/pair-with-code`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pairingCode: code }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert("Koppelen mislukt: " + (err.error || res.status));
+    return;
+  }
+
+  input.value = "";
+  loadPlayers();
+}
+
+loadTenants();
 </script>
 
 </body>
 </html>
-
