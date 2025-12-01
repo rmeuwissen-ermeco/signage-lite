@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Signage Lite Admin – Media</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      background: #111;
+      color: #f5f5f5;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    header {
+      background: #222;
+      padding: 10px 16px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    header a {
+      color: #9cf;
+      text-decoration: none;
+      font-size: 13px;
+    }
+    main {
+      padding: 16px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    #status {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-bottom: 10px;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    input, select {
+      background: #111;
+      color: #f5f5f5;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+    button {
+      background: #2a2a2a;
+      color: #f5f5f5;
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button.danger {
+      border-color: #a33;
+      color: #fbb;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #333;
+      text-align: left;
+    }
+    th {
+      background: #181818;
+    }
+    tr:nth-child(even) td {
+      background: #181818;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: #333;
+      font-size: 11px;
+      margin-left: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="/admin-tenants.html">← Tenants</a>
+  <a href="/admin-players.html">Players</a>
+  <strong style="margin-left:auto;">Media</strong>
+  <select id="tenant-select"></select>
+  <button id="reload-btn">Laden</button>
+</header>
+
+<main>
+  <div id="status">Kies een tenant om media te bekijken.</div>
+
+  <form id="media-form">
+    <input id="media-filename" placeholder="Bestandsnaam" required />
+    <input id="media-url" placeholder="URL (https://...)" required />
+    <input id="media-mime" placeholder="MIME type (image/jpeg)" required />
+    <select id="media-type">
+      <option value="IMAGE">IMAGE</option>
+      <option value="VIDEO">VIDEO</option>
+    </select>
+    <button type="submit">Toevoegen</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Bestandsnaam</th>
+        <th>Type</th>
+        <th>MIME</th>
+        <th>URL</th>
+        <th>Acties</th>
+      </tr>
+    </thead>
+    <tbody id="media-tbody"></tbody>
+  </table>
+</main>
+
+<script>
+  const tenantSelect = document.getElementById("tenant-select");
+  const statusEl = document.getElementById("status");
+  const tbodyEl = document.getElementById("media-tbody");
+  const reloadBtn = document.getElementById("reload-btn");
+  const form = document.getElementById("media-form");
+
+  async function loadTenants() {
+    const res = await fetch("/api/admin/tenants");
+    if (!res.ok) {
+      statusEl.textContent = "Fout bij laden tenants.";
+      return;
+    }
+    const tenants = await res.json();
+    tenantSelect.innerHTML = "";
+    tenants.forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = `${t.id} – ${t.name}`;
+      tenantSelect.appendChild(opt);
+    });
+    if (tenants.length) {
+      loadMedia();
+    } else {
+      statusEl.textContent = "Nog geen tenants.";
+    }
+  }
+
+  async function loadMedia() {
+    const tenantId = tenantSelect.value;
+    if (!tenantId) {
+      statusEl.textContent = "Kies een tenant.";
+      return;
+    }
+
+    statusEl.textContent = "Media laden…";
+
+    const res = await fetch(`/api/admin/tenants/${tenantId}/media`);
+    if (!res.ok) {
+      const txt = await res.text();
+      statusEl.textContent = "Fout bij laden media: " + txt;
+      return;
+    }
+    const media = await res.json();
+
+    tbodyEl.innerHTML = "";
+    if (!media.length) {
+      statusEl.textContent = "Geen media voor deze tenant.";
+      return;
+    }
+
+    media.forEach(m => {
+      const tr = document.createElement("tr");
+
+      const tdId = document.createElement("td");
+      tdId.textContent = m.id;
+
+      const tdFilename = document.createElement("td");
+      tdFilename.textContent = m.filename;
+
+      const tdType = document.createElement("td");
+      tdType.textContent = m.mediaType;
+      const tdMime = document.createElement("td");
+      tdMime.textContent = m.mimeType;
+
+      const tdUrl = document.createElement("td");
+      const a = document.createElement("a");
+      a.href = m.url;
+      a.textContent = "Open";
+      a.target = "_blank";
+      a.style.color = "#9cf";
+      tdUrl.appendChild(a);
+
+      const tdActions = document.createElement("td");
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "Delete";
+      delBtn.className = "danger";
+      delBtn.addEventListener("click", async () => {
+        if (!confirm(`Media "${m.filename}" (#${m.id}) verwijderen?`)) return;
+        const delRes = await fetch(`/api/admin/media/${m.id}`, {
+          method: "DELETE",
+        });
+        if (!delRes.ok) {
+          const txt = await delRes.text();
+          alert("Fout bij verwijderen: " + txt);
+          return;
+        }
+        loadMedia();
+      });
+      tdActions.appendChild(delBtn);
+
+      tr.appendChild(tdId);
+      tr.appendChild(tdFilename);
+      tr.appendChild(tdType);
+      tr.appendChild(tdMime);
+      tr.appendChild(tdUrl);
+      tr.appendChild(tdActions);
+
+      tbodyEl.appendChild(tr);
+    });
+
+    statusEl.textContent = `${media.length} media-item(s) geladen.`;
+  }
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const tenantId = tenantSelect.value;
+    if (!tenantId) {
+      alert("Kies eerst een tenant.");
+      return;
+    }
+
+    const filename = document.getElementById("media-filename").value.trim();
+    const url = document.getElementById("media-url").value.trim();
+    const mimeType = document.getElementById("media-mime").value.trim();
+    const mediaType = document.getElementById("media-type").value;
+
+    if (!filename || !url || !mimeType) return;
+
+    const res = await fetch(`/api/admin/tenants/${tenantId}/media`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename, url, mimeType, mediaType }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      alert("Fout bij toevoegen media: " + txt);
+      return;
+    }
+
+    document.getElementById("media-filename").value = "";
+    document.getElementById("media-url").value = "";
+    document.getElementById("media-mime").value = "";
+    loadMedia();
+  });
+
+  reloadBtn.addEventListener("click", loadMedia);
+  tenantSelect.addEventListener("change", loadMedia);
+
+  window.addEventListener("load", loadTenants);
+</script>
+
+</body>
+</html>
+

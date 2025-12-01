@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  TENANT_ADMIN
+  TENANT_USER
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+model Tenant {
+  id          Int          @id @default(autoincrement())
+  name        String
+  users       User[]
+  players     Player[]
+  mediaAssets MediaAsset[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String    // bcrypt hash later
+  role      UserRole
+  tenant    Tenant?   @relation(fields: [tenantId], references: [id])
+  tenantId  Int?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Player {
+  id        Int        @id @default(autoincrement())
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  tenantId  Int
+  name      String
+  location  String?
+  isActive  Boolean    @default(true)
+  device    Device?
+  playlists Playlist[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Device {
+  id             Int       @id @default(autoincrement())
+  player         Player?   @relation(fields: [playerId], references: [id])
+  playerId       Int?      @unique
+  deviceName     String?
+  platform       String    // "windows" | "android" | ...
+  pairingCode    String?   // tijdelijke 6-cijferige code
+  pairingExpires DateTime?
+  deviceToken    String?   @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Playlist {
+  id        Int            @id @default(autoincrement())
+  player    Player         @relation(fields: [playerId], references: [id])
+  playerId  Int
+  name      String         @default("Default")
+  isActive  Boolean        @default(true)
+  version   Int            @default(1)
+  items     PlaylistItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model MediaAsset {
+  id         Int            @id @default(autoincrement())
+  tenant     Tenant         @relation(fields: [tenantId], references: [id])
+  tenantId   Int
+  filename   String
+  url        String
+  mimeType   String
+  mediaType  MediaType
+  sizeBytes  Int
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  items      PlaylistItem[]
+}
+
+model PlaylistItem {
+  id          Int        @id @default(autoincrement())
+  playlist    Playlist   @relation(fields: [playlistId], references: [id])
+  playlistId  Int
+  media       MediaAsset @relation(fields: [mediaId], references: [id])
+  mediaId     Int
+  sortOrder   Int
+  durationSec Int?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}

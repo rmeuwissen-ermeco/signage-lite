@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Signage Lite Admin – Tenants</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
+    body {
+      background: #111; color: #f5f5f5;
+      min-height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      padding: 10px 16px; background: #222; border-bottom: 1px solid #333;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 14px;
+    }
+    main { padding: 12px 16px; max-width: 800px; margin: 0 auto; width: 100%; }
+    #status { font-size: 12px; opacity: 0.7; margin-bottom: 8px; }
+    form { margin-bottom: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+    input {
+      font-size: 13px; padding: 4px 8px; border-radius: 4px;
+      border: 1px solid #444; background: #111; color: #f5f5f5;
+    }
+    button {
+      font-size: 13px; padding: 4px 10px; border-radius: 4px;
+      border: 1px solid #555; background: #2a2a2a; color: #f5f5f5;
+      cursor: pointer;
+    }
+    button.danger { border-color: #a33; color: #fbb; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid #333; text-align: left; }
+    th { background: #181818; }
+    tr:nth-child(even) td { background: #181818; }
+    .badge {
+      display: inline-block; padding: 0 6px; border-radius: 999px;
+      background: #333; font-size: 11px; margin-left: 4px;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>Signage Lite Admin – Tenants</div>
+  <div>
+    <a href="/admin.html" style="color:#9cf; font-size:12px; margin-right:8px;">→ Players</a>
+    <button id="reload-btn">Opnieuw laden</button>
+  </div>
+</header>
+
+<main>
+  <div id="status">Laden…</div>
+
+  <form id="tenant-form">
+    <input type="text" id="tenant-name" placeholder="Nieuwe tenant naam" required />
+    <button type="submit">Toevoegen</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Naam</th>
+        <th>Aangemaakt</th>
+        <th>Acties</th>
+      </tr>
+    </thead>
+    <tbody id="tenant-tbody">
+    </tbody>
+  </table>
+</main>
+
+<script>
+  const statusEl = document.getElementById("status");
+  const tbodyEl = document.getElementById("tenant-tbody");
+  const reloadBtn = document.getElementById("reload-btn");
+  const form = document.getElementById("tenant-form");
+  const nameInput = document.getElementById("tenant-name");
+
+  async function loadTenants() {
+    statusEl.textContent = "Tenants laden...";
+    try {
+      const res = await fetch("/api/admin/tenants");
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || res.statusText);
+      }
+      const tenants = await res.json();
+      renderTenants(tenants);
+      statusEl.textContent = tenants.length
+        ? tenants.length + " tenant(s) geladen."
+        : "Nog geen tenants.";
+    } catch (e) {
+      console.error(e);
+      statusEl.textContent = "Fout bij laden tenants: " + e.message;
+    }
+  }
+
+  function renderTenants(tenants) {
+    tbodyEl.innerHTML = "";
+    tenants.forEach((t) => {
+      const tr = document.createElement("tr");
+
+      const created = t.createdAt
+        ? new Date(t.createdAt).toLocaleString()
+        : "-";
+
+      const tdId = document.createElement("td");
+      tdId.textContent = t.id;
+
+      const tdName = document.createElement("td");
+      tdName.textContent = t.name;
+
+      const tdCreated = document.createElement("td");
+      tdCreated.textContent = created;
+
+      const tdActions = document.createElement("td");
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "Verwijderen";
+      delBtn.className = "danger";
+      delBtn.addEventListener("click", async () => {
+        const confirmText =
+          'Tenant "' +
+          t.name +
+          '" (#' +
+          t.id +
+          ') + alle players/media/playlists verwijderen?';
+        if (!confirm(confirmText)) return;
+        try {
+          const res = await fetch("/api/admin/tenants/" + t.id, {
+            method: "DELETE",
+          });
+          if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(txt || res.statusText);
+          }
+          await loadTenants();
+        } catch (e) {
+          alert("Fout bij verwijderen tenant: " + e.message);
+        }
+      });
+
+      tdActions.appendChild(delBtn);
+
+      tr.appendChild(tdId);
+      tr.appendChild(tdName);
+      tr.appendChild(tdCreated);
+      tr.appendChild(tdActions);
+
+      tbodyEl.appendChild(tr);
+    });
+  }
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const name = nameInput.value.trim();
+    if (!name) return;
+
+    try {
+      const res = await fetch("/api/admin/tenants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || res.statusText);
+      }
+      nameInput.value = "";
+      await loadTenants();
+    } catch (e) {
+      alert("Fout bij aanmaken tenant: " + e.message);
+    }
+  });
+
+  reloadBtn.addEventListener("click", () => {
+    loadTenants();
+  });
+
+  window.addEventListener("load", () => {
+    loadTenants();
+  });
+</script>
+
+</body>
+</html>
