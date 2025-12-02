@@ -61,10 +61,11 @@
     }
     #media-container img,
     #media-container video {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      background: #000;
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* wordt overschreven door JS via inline style */
+    background: #000;
+    display: block;
     }
 
     #debug-overlay {
@@ -76,6 +77,8 @@
       border-radius: 4px;
       font-size: 11px;
       color: #ccc;
+      line-height: 1.3;
+      text-align: left;
     }
 
     #error {
@@ -99,7 +102,9 @@
 <div id="playback" style="display:none;">
   <div id="media-container"></div>
   <div id="debug-overlay">
-    <span id="debug-status">Laden…</span>
+    <div id="debug-playlist">Playlist: laden…</div>
+    <div id="debug-canvas">Canvas: onbekend — screen: onbekend</div>
+    <div id="debug-slide">Slide: —</div>
   </div>
 </div>
 
@@ -125,17 +130,21 @@ let currentDeviceToken = null;
 let currentPlayerId = null;
 let currentPlaylistVersion = null;
 let currentItems = [];
+let currentFitMode = "CONTAIN"; // standaard
 
 let pairingExpiresAt = null;
 
 const pairingView = document.getElementById("pairing");
 const playbackView = document.getElementById("playback");
-const errorView = document.getElementById("error");
+const errorView = document.getElementElementById?.("error") || document.getElementById("error");
 const pairingCodeEl = document.getElementById("pairing-code");
 const pairingTimerEl = document.getElementById("pairing-timer");
 const errorMessageEl = document.getElementById("error-message");
 const mediaContainer = document.getElementById("media-container");
-const debugStatusEl = document.getElementById("debug-status");
+
+const debugPlaylistEl = document.getElementById("debug-playlist");
+const debugCanvasEl = document.getElementById("debug-canvas");
+const debugSlideEl = document.getElementById("debug-slide");
 
 function showPairing() {
   pairingView.style.display = "flex";
@@ -200,6 +209,7 @@ function clearSlideshow() {
     slideTimeout = null;
   }
   mediaContainer.innerHTML = "";
+  debugSlideEl.textContent = "Slide: —";
 }
 
 function startPairingFlow() {
@@ -295,13 +305,36 @@ async function checkDeviceStatus() {
 function authHeaders() {
   return {
     "Authorization": `Bearer ${currentDeviceToken}`,
+    "Content-Type": "application/json",
   };
+}
+
+async function sendScreenInfo() {
+  if (!currentDeviceToken) return;
+
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
+
+  try {
+    await fetch(`${API_BASE}/api/device/screen`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        screenWidth,
+        screenHeight,
+      }),
+    });
+  } catch (err) {
+    console.error("Fout bij sturen screen info:", err);
+  }
 }
 
 async function fetchPlaylist() {
   try {
     const res = await fetch(`${API_BASE}/api/device/playlist`, {
-      headers: authHeaders(),
+      headers: {
+        "Authorization": `Bearer ${currentDeviceToken}`,
+      },
     });
 
     if (res.status === 401) {
@@ -313,12 +346,29 @@ async function fetchPlaylist() {
 
     if (!res.ok) {
       console.warn("Playlist fout:", res.status);
+      debugPlaylistEl.textContent = `Playlist laden mislukt (${res.status})`;
       return;
     }
 
     const data = await res.json();
 
-    debugStatusEl.textContent = `Playlist v${data.version} — items: ${data.items.length}`;
+    const canvasText =
+      data.designWidth && data.designHeight
+        ? `${data.designWidth}×${data.designHeight}`
+        : "onbekend";
+
+    const screenText = `${window.innerWidth}×${window.innerHeight}`;
+
+    // Fit mode uit backend (valt terug op CONTAIN als er niks is)
+    currentFitMode =
+      typeof data.fitMode === "string" && data.fitMode.length > 0
+        ? data.fitMode
+        : "CONTAIN";
+
+    debugPlaylistEl.textContent =
+      `Playlist v${data.version} — items: ${data.items.length}`;
+    debugCanvasEl.textContent =
+      `Canvas: ${canvasText} — screen: ${screenText} — fit: ${currentFitMode}`;
 
     if (currentPlaylistVersion !== data.version) {
       currentPlaylistVersion = data.version;
@@ -327,9 +377,10 @@ async function fetchPlaylist() {
     }
   } catch (err) {
     console.error("Fout bij ophalen playlist:", err);
-    debugStatusEl.textContent = "Fout bij playlist ophalen";
+    debugPlaylistEl.textContent = "Playlist laden mislukt (fout)";
   }
 }
+
 
 function restartSlideshow() {
   clearSlideshow();
@@ -340,18 +391,46 @@ function restartSlideshow() {
     msg.style.fontSize = "24px";
     msg.style.color = "#888";
     mediaContainer.appendChild(msg);
-    debugStatusEl.textContent = "Geen items in playlist";
+    debugSlideEl.textContent = "Slide: geen items in playlist";
     return;
   }
 
   runSlideLoop(0);
 }
 
+function applyFitMode(element) {
+  // Zorg dat het element het hele vlak gebruikt
+  element.style.width = "100%";
+  element.style.height = "100%";
+
+  let fit = "contain";
+  let pos = "center center";
+
+  switch (currentFitMode) {
+    case "COVER":
+      fit = "cover";
+      break;
+    case "STRETCH":
+      fit = "fill";
+      break;
+    case "ORIGINAL":
+      fit = "none";
+      break;
+    case "CONTAIN":
+    default:
+      fit = "contain";
+      break;
+  }
+
+  element.style.objectFit = fit;
+  element.style.objectPosition = pos;
+}
+
 function runSlideLoop(index) {
   clearSlideshow();
 
   if (!currentItems || currentItems.length === 0) {
-    debugStatusEl.textContent = "Geen items in playlist";
+    debugSlideEl.textContent = "Slide: geen items in playlist";
     return;
   }
 
@@ -363,18 +442,20 @@ function runSlideLoop(index) {
       ? item.durationSec * 1000
       : 10000;
 
-  debugStatusEl.textContent =
-    `Slide ${itemIndex + 1}/${currentItems.length} — ` +
-    `${item.type} — ${item.durationSec || 10}s`;
-
   if (!item) {
+    debugSlideEl.textContent = "Slide: onbekend item";
     slideTimeout = setTimeout(() => runSlideLoop(itemIndex + 1), durationMs);
     return;
   }
 
+  debugSlideEl.textContent =
+    `Slide: ${itemIndex + 1}/${currentItems.length} — ` +
+    `${item.type} — ${(item.durationSec || 10)}s — fit: ${currentFitMode}`;
+
   if (item.type === "IMAGE") {
     const img = document.createElement("img");
     img.src = item.url;
+    applyFitMode(img);
     mediaContainer.appendChild(img);
 
     slideTimeout = setTimeout(() => {
@@ -386,6 +467,7 @@ function runSlideLoop(index) {
     video.autoplay = true;
     video.muted = true;
     video.playsInline = true;
+    applyFitMode(video);
     mediaContainer.appendChild(video);
 
     let timeoutHandle = setTimeout(() => {
@@ -420,6 +502,9 @@ function startPlaybackFlow() {
   clearSlideshow();
   showPlayback();
 
+  // Bij start direct screen info doorgeven
+  sendScreenInfo();
+
   fetchPlaylist();
   playlistInterval = setInterval(fetchPlaylist, POLL_PLAYLIST_INTERVAL_MS);
 }
@@ -431,6 +516,10 @@ function init() {
     currentDeviceToken = auth.deviceToken;
     currentPlayerId = auth.playerId || null;
     showPlayback();
+
+    // Direct screen info doorgeven bij herstart met bestaand token
+    sendScreenInfo();
+
     fetchPlaylist();
     playlistInterval = setInterval(fetchPlaylist, POLL_PLAYLIST_INTERVAL_MS);
   } else {

@@ -29,6 +29,19 @@ function generateDeviceToken(): string {
   return crypto.randomBytes(32).toString("hex"); // 64-karakter hex string
 }
 
+// Helper voor veilige fitMode
+const ALLOWED_FIT_MODES = ["CONTAIN", "COVER", "STRETCH", "ORIGINAL"] as const;
+type FitModeType = (typeof ALLOWED_FIT_MODES)[number];
+
+function normalizeFitMode(mode: unknown): FitModeType {
+  if (typeof mode !== "string") return "CONTAIN";
+  const upper = mode.toUpperCase();
+  if (ALLOWED_FIT_MODES.includes(upper as FitModeType)) {
+    return upper as FitModeType;
+  }
+  return "CONTAIN";
+}
+
 /**
  * DEVICE REGISTRATIE & PAIRING
  */
@@ -100,7 +113,7 @@ app.get("/api/devices/:id/status", async (req, res) => {
   }
 });
 
-// Player koppelen aan device via pairingCode
+// Player koppelen aan device via pairingCode (frontend/player-flow)
 app.post("/api/players/pair", async (req, res) => {
   try {
     const { pairingCode, playerName, location, tenantId } = req.body as {
@@ -492,6 +505,53 @@ app.delete("/api/admin/media/:id", async (req, res) => {
 });
 
 /**
+ * DEVICE: SCREEN INFO DOORGEVEN
+ */
+app.post(
+  "/api/device/screen",
+  deviceAuth,
+  async (req: DeviceRequest, res) => {
+    try {
+      const device = req.device!;
+      const { screenWidth, screenHeight } = req.body as {
+        screenWidth?: number;
+        screenHeight?: number;
+      };
+
+      if (!device.playerId) {
+        return res
+          .status(400)
+          .json({ error: "Device is niet gekoppeld aan een player" });
+      }
+
+      if (
+        typeof screenWidth !== "number" ||
+        typeof screenHeight !== "number" ||
+        !Number.isFinite(screenWidth) ||
+        !Number.isFinite(screenHeight)
+      ) {
+        return res.status(400).json({
+          error: "screenWidth en screenHeight moeten nummers zijn",
+        });
+      }
+
+      await prisma.player.update({
+        where: { id: device.playerId },
+        data: {
+          screenWidth,
+          screenHeight,
+        },
+      });
+
+      return res.json({ ok: true });
+    } catch (error) {
+      console.error("Fout in /api/device/screen:", error);
+      return res.status(500).json({ error: "Interne serverfout" });
+    }
+  }
+);
+
+/**
  * DEVICE: PLAYLIST OPVRAGEN
  */
 
@@ -512,7 +572,7 @@ app.get(
               media: true,
             },
             orderBy: {
-              sortOrder: "asc", // veldnaam in Prisma-schema
+              sortOrder: "asc",
             },
           },
         },
@@ -522,6 +582,9 @@ app.get(
         return res.json({
           playerId: device.playerId,
           version: 0,
+          designWidth: null,
+          designHeight: null,
+          fitMode: "CONTAIN",
           items: [],
         });
       }
@@ -536,6 +599,9 @@ app.get(
       return res.json({
         playerId: device.playerId,
         version: playlist.version,
+        designWidth: playlist.designWidth,
+        designHeight: playlist.designHeight,
+        fitMode: playlist.fitMode,
         items,
       });
     } catch (error) {
@@ -573,11 +639,18 @@ app.get("/api/admin/players/:playerId/playlists", async (req, res) => {
 app.post("/api/admin/players/:playerId/playlists", async (req, res) => {
   try {
     const playerId = Number(req.params.playerId);
-    const { name } = req.body as { name?: string };
+    const { name, designWidth, designHeight, fitMode } = req.body as {
+      name?: string;
+      designWidth?: number;
+      designHeight?: number;
+      fitMode?: string;
+    };
 
     if (!name) {
       return res.status(400).json({ error: "name is verplicht" });
     }
+
+    const safeFitMode = normalizeFitMode(fitMode);
 
     const playlist = await prisma.playlist.create({
       data: {
@@ -585,6 +658,9 @@ app.post("/api/admin/players/:playerId/playlists", async (req, res) => {
         name,
         isActive: true,
         version: 1,
+        designWidth: typeof designWidth === "number" ? designWidth : null,
+        designHeight: typeof designHeight === "number" ? designHeight : null,
+        fitMode: safeFitMode,
       },
     });
 
@@ -654,6 +730,34 @@ app.post("/api/admin/playlists/:id/activate", async (req, res) => {
   }
 });
 
+// Admin: fitMode updaten
+app.post("/api/admin/playlists/:id/fit-mode", async (req, res) => {
+  try {
+    const playlistId = Number(req.params.id);
+    if (isNaN(playlistId)) {
+      return res.status(400).json({ error: "Ongeldige playlist-id" });
+    }
+
+    const { fitMode } = req.body as { fitMode?: string };
+    const safeFitMode = normalizeFitMode(fitMode);
+
+    const updated = await prisma.playlist.update({
+      where: { id: playlistId },
+      data: {
+        fitMode: safeFitMode,
+        version: { increment: 1 },
+      },
+    });
+
+    return res.json(updated);
+  } catch (e) {
+    console.error("Fout in /api/admin/playlists/:id/fit-mode:", e);
+    return res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
+
+
 // Items binnen playlist ophalen
 app.get("/api/admin/playlists/:playlistId/items", async (req, res) => {
   try {
@@ -696,7 +800,7 @@ app.post("/api/admin/playlists/:playlistId/items", async (req, res) => {
       data: {
         playlistId,
         mediaId,
-        durationSec: durationSec ?? 10,
+        durationSec: typeof durationSec === "number" ? durationSec : 10,
         sortOrder: newSortOrder,
       },
     });

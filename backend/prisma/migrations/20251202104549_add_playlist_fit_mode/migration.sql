@@ -1,0 +1,2 @@
+-- CreateEnum
+CREATE TYPE "FitMode" AS ENUM ('CONTAIN', 'COVER', 'STRETCH', 'ORIGINAL');

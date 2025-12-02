@@ -86,18 +86,20 @@
   <h2>2. Bestaande players</h2>
 
   <table id="playersTable">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Naam</th>
-        <th>Locatie</th>
-        <th>Device</th>
-        <th>Pairing</th>
-        <th>Acties</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Naam</th>
+      <th>Locatie</th>
+      <th>Device</th>
+      <th>Screen</th>
+      <th>Canvas (actieve playlist)</th>
+      <th>Pairing</th>
+      <th>Acties</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
 </main>
 
 <script>
@@ -129,20 +131,54 @@ async function loadPlayers() {
   tbody.innerHTML = "";
 
   players.forEach(p => {
-    const row = document.createElement("tr");
+  const row = document.createElement("tr");
 
-    let deviceInfo = "—";
-    if (p.device) {
-      deviceInfo = `${p.device.platform || "device"} — ${
-        p.device.deviceName || "naam onbekend"
-      }`;
+  // Device info
+  let deviceInfo = "—";
+  if (p.device) {
+    deviceInfo = `${p.device.platform || "device"} — ${
+      p.device.deviceName || "naam onbekend"
+    }`;
+  }
+
+  // Screen info (laatste gemeten resolutie vanuit player)
+  let screenText = "onbekend";
+  if (p.screenWidth && p.screenHeight) {
+    screenText = `${p.screenWidth}×${p.screenHeight}`;
+  }
+
+  // Actieve playlist + canvas
+  let canvasText = "geen actieve playlist";
+  let ratioText = "";
+
+  if (Array.isArray(p.playlists) && p.playlists.length > 0) {
+    const active = p.playlists.find(pl => pl.isActive);
+    if (active && active.designWidth && active.designHeight) {
+      canvasText = `${active.designWidth}×${active.designHeight}`;
+
+      if (p.screenWidth && p.screenHeight) {
+        const canvasRatio = active.designWidth / active.designHeight;
+        const screenRatio = p.screenWidth / p.screenHeight;
+        const diff = Math.abs(canvasRatio - screenRatio);
+
+        if (diff < 0.05) {
+          ratioText = " — ratio OK";
+        } else {
+          ratioText = " — ratio afwijkend";
+        }
+      }
+    } else if (active) {
+      canvasText = "actieve playlist (canvas onbekend)";
     }
+  }
 
-    row.innerHTML = `
+  row.innerHTML = `
       <td>${p.id}</td>
       <td>${p.name}</td>
       <td>${p.location || ""}</td>
       <td>${deviceInfo}</td>
+      <td>${screenText}</td>
+      <td>${canvasText}${ratioText}</td>
       <td>
         <input
           type="text"
@@ -158,8 +194,9 @@ async function loadPlayers() {
       </td>
     `;
 
-    tbody.appendChild(row);
-  });
+  tbody.appendChild(row);
+});
+
 }
 
 async function createPlayer() {

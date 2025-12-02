@@ -24,7 +24,7 @@
     }
     main {
       padding: 16px;
-      max-width: 900px;
+      max-width: 1000px;
       margin: 0 auto;
     }
     table {
@@ -35,6 +35,7 @@
     th, td {
       padding: 6px 8px;
       border-bottom: 1px solid #333;
+      vertical-align: middle;
     }
     button {
       background: #2a2a2a;
@@ -59,6 +60,9 @@
       margin-top: 24px;
       margin-bottom: 6px;
     }
+    small {
+      color: #aaa;
+    }
   </style>
 </head>
 
@@ -79,16 +83,34 @@
   <label>Player:</label>
   <select id="playerSelect"></select>
 
-  <h2>2. Playlists</h2>
+  <h2>2. Nieuwe playlist</h2>
 
-  <input type="text" id="newPlaylistName" placeholder="Naam nieuwe playlist…" />
-  <button onclick="createPlaylist()">Aanmaken</button>
+  <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+    <input type="text" id="newPlaylistName" placeholder="Naam nieuwe playlist…" />
+    <input type="number" id="newDesignWidth" placeholder="Canvas breedte (px)" style="width:140px;" />
+    <input type="number" id="newDesignHeight" placeholder="Canvas hoogte (px)" style="width:140px;" />
+    <select id="newFitMode">
+      <option value="CONTAIN">CONTAIN – alles zichtbaar (balken mogelijk)</option>
+      <option value="COVER">COVER – vullend, mag croppen</option>
+      <option value="STRETCH">STRETCH – rekken naar canvas</option>
+      <option value="ORIGINAL">ORIGINAL – originele grootte</option>
+    </select>
+    <button onclick="createPlaylist()">Aanmaken</button>
+  </div>
+  <small>
+    Canvas = ontworpen formaat (bijv. 1920×1080 of 2880×158).<br>
+    Fit mode bepaalt hoe content zich verhoudt tot het scherm (contain/cover/stretch/original).
+  </small>
+
+  <h2>3. Bestaande playlists</h2>
 
   <table id="playlistTable">
     <thead>
       <tr>
         <th>ID</th>
         <th>Naam</th>
+        <th>Canvas</th>
+        <th>Fit mode</th>
         <th>Versie</th>
         <th>Status</th>
         <th>Acties</th>
@@ -155,9 +177,26 @@ async function loadPlaylists() {
 
     const isActiveLabel = pl.isActive ? "✔ actief" : "—";
 
+    // Canvas-tekst op basis van designWidth / designHeight
+    let canvasText = "onbekend";
+    if (pl.designWidth && pl.designHeight) {
+      canvasText = `${pl.designWidth}×${pl.designHeight}`;
+    }
+
+    const currentFitMode = pl.fitMode || "CONTAIN";
+
     row.innerHTML = `
       <td>${pl.id}</td>
       <td>${pl.name}</td>
+      <td>${canvasText}</td>
+      <td>
+        <select id="fitMode-${pl.id}">
+          <option value="CONTAIN">CONTAIN – alles zichtbaar</option>
+          <option value="COVER">COVER – vullend, mag croppen</option>
+          <option value="STRETCH">STRETCH – rekken naar canvas</option>
+          <option value="ORIGINAL">ORIGINAL – originele grootte</option>
+        </select>
+      </td>
       <td>${pl.version}</td>
       <td>${isActiveLabel}</td>
       <td>
@@ -173,25 +212,43 @@ async function loadPlaylists() {
       </td>
     `;
 
-
     tbody.appendChild(row);
+
+    // Huidige fitMode selecteren en onchange handler koppelen
+    const select = document.getElementById(`fitMode-${pl.id}`);
+    if (select) {
+      select.value = currentFitMode;
+      select.onchange = () => {
+        updateFitMode(pl.id, select.value);
+      };
+    }
   });
 }
 
 async function createPlaylist() {
   const name = document.getElementById("newPlaylistName").value;
   const playerId = document.getElementById("playerSelect").value;
+  const designWidthRaw = (document.getElementById("newDesignWidth").value || "").trim();
+  const designHeightRaw = (document.getElementById("newDesignHeight").value || "").trim();
+  const fitMode = document.getElementById("newFitMode").value;
 
   if (!name) return alert("Naam is verplicht.");
   if (!playerId) return alert("Selecteer een player.");
 
+  const designWidth = designWidthRaw ? Number(designWidthRaw) : undefined;
+  const designHeight = designHeightRaw ? Number(designHeightRaw) : undefined;
+
   await fetch(`/api/admin/players/${playerId}/playlists`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name })
+    body: JSON.stringify({ name, designWidth, designHeight, fitMode })
   });
 
   document.getElementById("newPlaylistName").value = "";
+  document.getElementById("newDesignWidth").value = "";
+  document.getElementById("newDesignHeight").value = "";
+  document.getElementById("newFitMode").value = "CONTAIN";
+
   loadPlaylists();
 }
 
@@ -213,6 +270,24 @@ async function activatePlaylist(id) {
     return;
   }
 
+  loadPlaylists();
+}
+
+async function updateFitMode(playlistId, fitMode) {
+  const res = await fetch(`/api/admin/playlists/${playlistId}/fit-mode`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fitMode })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert("Fit mode wijzigen mislukt: " + (err.error || res.status));
+    loadPlaylists();
+    return;
+  }
+
+  // Optioneel opnieuw laden om versie/status te verversen
   loadPlaylists();
 }
 

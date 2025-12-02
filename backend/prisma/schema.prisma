@@ -18,6 +18,13 @@ enum MediaType {
   VIDEO
 }
 
+enum FitMode {
+  CONTAIN
+  COVER
+  STRETCH
+  ORIGINAL
+}
+
 model Tenant {
   id          Int          @id @default(autoincrement())
   name        String
@@ -40,16 +47,18 @@ model User {
 }
 
 model Player {
-  id        Int        @id @default(autoincrement())
-  tenant    Tenant     @relation(fields: [tenantId], references: [id])
-  tenantId  Int
-  name      String
-  location  String?
-  isActive  Boolean    @default(true)
-  device    Device?
-  playlists Playlist[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          Int        @id @default(autoincrement())
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  tenantId    Int
+  name        String
+  location    String?
+  isActive    Boolean    @default(true)
+  device      Device?
+  playlists   Playlist[]
+  screenWidth Int?
+  screenHeight Int?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model Device {
@@ -66,15 +75,18 @@ model Device {
 }
 
 model Playlist {
-  id        Int            @id @default(autoincrement())
-  player    Player         @relation(fields: [playerId], references: [id])
-  playerId  Int
-  name      String         @default("Default")
-  isActive  Boolean        @default(true)
-  version   Int            @default(1)
-  items     PlaylistItem[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id           Int            @id @default(autoincrement())
+  player       Player         @relation(fields: [playerId], references: [id])
+  playerId     Int
+  name         String         @default("Default")
+  isActive     Boolean        @default(true)
+  version      Int            @default(1)
+  items        PlaylistItem[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  designWidth  Int?
+  designHeight Int?
+  fitMode      FitMode        @default(CONTAIN)
 }
 
 model MediaAsset {
