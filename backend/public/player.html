@@ -104,6 +104,8 @@
   <div id="debug-overlay">
     <div id="debug-playlist">Playlist: laden…</div>
     <div id="debug-canvas">Canvas: onbekend — screen: onbekend</div>
+    <div id="debug-player">Player: onbekend</div>
+    <div id="debug-playlist-name">Playlist naam: onbekend</div>
     <div id="debug-slide">Slide: —</div>
   </div>
 </div>
@@ -145,6 +147,8 @@ const mediaContainer = document.getElementById("media-container");
 const debugPlaylistEl = document.getElementById("debug-playlist");
 const debugCanvasEl = document.getElementById("debug-canvas");
 const debugSlideEl = document.getElementById("debug-slide");
+const debugPlayerEl = document.getElementById("debug-player");
+const debugPlaylistNameEl = document.getElementById("debug-playlist-name");
 
 function showPairing() {
   pairingView.style.display = "flex";
@@ -367,8 +371,15 @@ async function fetchPlaylist() {
 
     debugPlaylistEl.textContent =
       `Playlist v${data.version} — items: ${data.items.length}`;
+
+    debugPlayerEl.textContent =
+      `Player: ${data.playerName || "onbekend"}${data.location ? " (" + data.location + ")" : ""}`;
+
+    debugPlaylistNameEl.textContent =
+      `Playlist naam: ${data.playlistName || "onbekend"}`;
+
     debugCanvasEl.textContent =
-      `Canvas: ${canvasText} — screen: ${screenText} — fit: ${currentFitMode}`;
+      `Canvas: ${canvasText} — screen: ${screenText} — fit: ${data.fitMode}`;
 
     if (currentPlaylistVersion !== data.version) {
       currentPlaylistVersion = data.version;
