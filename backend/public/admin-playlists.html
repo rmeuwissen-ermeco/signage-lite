@@ -2,77 +2,198 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <title>Playlist beheer</title>
-
+  <title>Signage Lite – Playlists</title>
   <style>
+    :root {
+      --bg: #0b0b0b;
+      --bg-elevated: #181818;
+      --border-subtle: #303030;
+      --accent: #4cafef;
+      --accent-soft: rgba(76, 175, 239, 0.15);
+      --text-main: #f5f5f5;
+      --text-muted: #9a9a9a;
+      --danger: #e57373;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
     body {
-      background: #111;
-      color: #f5f5f5;
-      font-family: system-ui;
-    }
-    header {
-      background: #222;
-      padding: 10px 16px;
-      border-bottom: 1px solid #333;
       display: flex;
-      gap: 12px;
+      flex-direction: column;
+    }
+
+    header {
+      background: #111;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 10px 20px;
+      display: flex;
       align-items: center;
+      justify-content: space-between;
+      gap: 24px;
     }
-    header a {
-      color: #f5f5f5;
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    nav a {
       text-decoration: none;
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      background: transparent;
     }
+
+    nav a:hover {
+      border-color: var(--border-subtle);
+      color: var(--text-main);
+      background: #151515;
+    }
+
+    nav a.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
     main {
-      padding: 16px;
-      max-width: 1000px;
+      padding: 20px;
+      max-width: 1100px;
       margin: 0 auto;
+      width: 100%;
     }
+
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 22px;
+    }
+
+    p.lead {
+      margin: 0 0 16px 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    h2 {
+      margin-top: 24px;
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+
+    label {
+      font-size: 13px;
+      margin-right: 4px;
+    }
+
+    input, select {
+      background: #111;
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+
+    button {
+      background: #1d1d1d;
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    button.danger {
+      border-color: var(--danger);
+      color: #ffcdd2;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 12px;
+      font-size: 13px;
     }
+
     th, td {
       padding: 6px 8px;
-      border-bottom: 1px solid #333;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
       vertical-align: middle;
     }
-    button {
-      background: #2a2a2a;
-      color: #fff;
-      border: 1px solid #555;
-      border-radius: 4px;
-      padding: 4px 8px;
-      cursor: pointer;
+
+    th {
+      color: var(--text-muted);
+      font-weight: 500;
     }
-    button.danger {
-      border-color: #a33;
-      color: #fbb;
-    }
-    input, select {
-      background: #111;
-      color: #fff;
-      border: 1px solid #333;
-      border-radius: 4px;
-      padding: 4px 8px;
-    }
-    h2 {
-      margin-top: 24px;
-      margin-bottom: 6px;
-    }
-    small {
-      color: #aaa;
+
+    td select {
+      font-size: 12px;
+      padding: 2px 6px;
     }
   </style>
 </head>
 
 <body>
+
 <header>
-  <a href="/admin.html">← Admin</a>
-  <h1>Playlists</h1>
+  <div class="brand">
+    <div class="brand-title">Signage Lite – Admin</div>
+    <div class="brand-subtitle">Playlists & fit-modes</div>
+  </div>
+  <nav>
+    <a href="/admin.html">Overzicht</a>
+    <a href="/admin-tenants.html">Tenants</a>
+    <a href="/admin-players.html">Players</a>
+    <a href="/admin-media.html">Media</a>
+    <a href="/admin-playlists.html" class="active">Playlists</a>
+  </nav>
 </header>
 
 <main>
+
+  <h1>Playlists</h1>
+  <p class="lead">
+    Playlists horen bij een player. Hier beheer je de actieve playlist, canvasformaat en fit-mode.
+  </p>
 
   <h2>1. Tenant en player</h2>
   <label>Tenant:</label>
@@ -83,36 +204,27 @@
   <label>Player:</label>
   <select id="playerSelect"></select>
 
-  <h2>2. Nieuwe playlist</h2>
+  <h2>2. Playlists</h2>
 
-  <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
-    <input type="text" id="newPlaylistName" placeholder="Naam nieuwe playlist…" />
-    <input type="number" id="newDesignWidth" placeholder="Canvas breedte (px)" style="width:140px;" />
-    <input type="number" id="newDesignHeight" placeholder="Canvas hoogte (px)" style="width:140px;" />
-    <select id="newFitMode">
-      <option value="CONTAIN">CONTAIN – alles zichtbaar (balken mogelijk)</option>
-      <option value="COVER">COVER – vullend, mag croppen</option>
-      <option value="STRETCH">STRETCH – rekken naar canvas</option>
-      <option value="ORIGINAL">ORIGINAL – originele grootte</option>
-    </select>
-    <button onclick="createPlaylist()">Aanmaken</button>
+  <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end;">
+    <div>
+      <label for="newPlaylistName">Naam</label><br>
+      <input type="text" id="newPlaylistName" placeholder="Naam nieuwe playlist…" />
+    </div>
+    <div>
+      <button onclick="createPlaylist()">Aanmaken</button>
+    </div>
   </div>
-  <small>
-    Canvas = ontworpen formaat (bijv. 1920×1080 of 2880×158).<br>
-    Fit mode bepaalt hoe content zich verhoudt tot het scherm (contain/cover/stretch/original).
-  </small>
-
-  <h2>3. Bestaande playlists</h2>
 
   <table id="playlistTable">
     <thead>
       <tr>
         <th>ID</th>
         <th>Naam</th>
-        <th>Canvas</th>
-        <th>Fit mode</th>
         <th>Versie</th>
         <th>Status</th>
+        <th>Canvas</th>
+        <th>Fit mode</th>
         <th>Acties</th>
       </tr>
     </thead>
@@ -120,6 +232,10 @@
   </table>
 
 </main>
+
+<footer>
+  Signage Lite v0.x – playlists
+</footer>
 
 <script>
 async function loadTenants() {
@@ -170,35 +286,34 @@ async function loadPlaylists() {
   const tbody = document.querySelector("#playlistTable tbody");
   tbody.innerHTML = "";
 
+  const tenantId = document.getElementById("tenantSelect").value;
+
   playlists.forEach(pl => {
     const row = document.createElement("tr");
 
-    const tenantId = document.getElementById("tenantSelect").value;
-
     const isActiveLabel = pl.isActive ? "✔ actief" : "—";
 
-    // Canvas-tekst op basis van designWidth / designHeight
-    let canvasText = "onbekend";
-    if (pl.designWidth && pl.designHeight) {
-      canvasText = `${pl.designWidth}×${pl.designHeight}`;
-    }
+    const canvasText =
+      pl.designWidth && pl.designHeight
+        ? `${pl.designWidth}×${pl.designHeight}`
+        : "—";
 
-    const currentFitMode = pl.fitMode || "CONTAIN";
+    const currentFit = pl.fitMode || "CONTAIN";
 
     row.innerHTML = `
       <td>${pl.id}</td>
       <td>${pl.name}</td>
-      <td>${canvasText}</td>
-      <td>
-        <select id="fitMode-${pl.id}">
-          <option value="CONTAIN">CONTAIN – alles zichtbaar</option>
-          <option value="COVER">COVER – vullend, mag croppen</option>
-          <option value="STRETCH">STRETCH – rekken naar canvas</option>
-          <option value="ORIGINAL">ORIGINAL – originele grootte</option>
-        </select>
-      </td>
       <td>${pl.version}</td>
       <td>${isActiveLabel}</td>
+      <td>${canvasText}</td>
+      <td>
+        <select onchange="changeFitMode(${pl.id}, this.value)">
+          <option value="CONTAIN" ${currentFit === "CONTAIN" ? "selected" : ""}>CONTAIN</option>
+          <option value="COVER" ${currentFit === "COVER" ? "selected" : ""}>COVER</option>
+          <option value="STRETCH" ${currentFit === "STRETCH" ? "selected" : ""}>STRETCH</option>
+          <option value="ORIGINAL" ${currentFit === "ORIGINAL" ? "selected" : ""}>ORIGINAL</option>
+        </select>
+      </td>
       <td>
         <button onclick="openItems(${pl.id}, ${tenantId}, ${pl.playerId})">
           Items
@@ -213,43 +328,57 @@ async function loadPlaylists() {
     `;
 
     tbody.appendChild(row);
-
-    // Huidige fitMode selecteren en onchange handler koppelen
-    const select = document.getElementById(`fitMode-${pl.id}`);
-    if (select) {
-      select.value = currentFitMode;
-      select.onchange = () => {
-        updateFitMode(pl.id, select.value);
-      };
-    }
   });
 }
 
-async function createPlaylist() {
-  const name = document.getElementById("newPlaylistName").value;
+  async function createPlaylist() {
+  const name = document.getElementById("newPlaylistName").value.trim();
   const playerId = document.getElementById("playerSelect").value;
-  const designWidthRaw = (document.getElementById("newDesignWidth").value || "").trim();
-  const designHeightRaw = (document.getElementById("newDesignHeight").value || "").trim();
-  const fitMode = document.getElementById("newFitMode").value;
 
-  if (!name) return alert("Naam is verplicht.");
-  if (!playerId) return alert("Selecteer een player.");
+  if (!name) {
+    alert("Naam is verplicht.");
+    return;
+  }
+  if (!playerId) {
+    alert("Selecteer een player.");
+    return;
+  }
 
-  const designWidth = designWidthRaw ? Number(designWidthRaw) : undefined;
-  const designHeight = designHeightRaw ? Number(designHeightRaw) : undefined;
+  // Standaardwaarden voor nieuwe playlists
+  const payload = {
+    name,
+    designWidth: 1920,
+    designHeight: 1080,
+    fitMode: "CONTAIN"
+  };
 
-  await fetch(`/api/admin/players/${playerId}/playlists`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, designWidth, designHeight, fitMode })
-  });
+  try {
+    const res = await fetch(`/api/admin/players/${playerId}/playlists`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-  document.getElementById("newPlaylistName").value = "";
-  document.getElementById("newDesignWidth").value = "";
-  document.getElementById("newDesignHeight").value = "";
-  document.getElementById("newFitMode").value = "CONTAIN";
+    if (!res.ok) {
+      let msg = "";
+      try {
+        const err = await res.json();
+        msg = err.error || JSON.stringify(err);
+      } catch (_) {
+        msg = await res.text().catch(() => "");
+      }
 
-  loadPlaylists();
+      alert("Playlist aanmaken mislukt: " + (msg || res.status));
+      console.error("Playlist create error:", res.status, msg);
+      return;
+    }
+
+    document.getElementById("newPlaylistName").value = "";
+    await loadPlaylists();
+  } catch (e) {
+    console.error("Netwerkfout bij playlist aanmaken:", e);
+    alert("Playlist aanmaken mislukt door een netwerk- of serverfout. Zie console voor details.");
+  }
 }
 
 async function deletePlaylist(id) {
@@ -273,21 +402,19 @@ async function activatePlaylist(id) {
   loadPlaylists();
 }
 
-async function updateFitMode(playlistId, fitMode) {
+async function changeFitMode(playlistId, fitMode) {
   const res = await fetch(`/api/admin/playlists/${playlistId}/fit-mode`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fitMode })
+    body: JSON.stringify({ fitMode }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     alert("Fit mode wijzigen mislukt: " + (err.error || res.status));
-    loadPlaylists();
     return;
   }
 
-  // Optioneel opnieuw laden om versie/status te verversen
   loadPlaylists();
 }
 

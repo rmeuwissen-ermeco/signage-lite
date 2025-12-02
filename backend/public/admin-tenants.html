@@ -2,61 +2,201 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <title>Signage Lite Admin – Tenants</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signage Lite – Tenants</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
+    :root {
+      --bg: #0b0b0b;
+      --bg-elevated: #181818;
+      --border-subtle: #303030;
+      --accent: #4cafef;
+      --accent-soft: rgba(76, 175, 239, 0.15);
+      --text-main: #f5f5f5;
+      --text-muted: #9a9a9a;
+      --danger: #e57373;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
     body {
-      background: #111; color: #f5f5f5;
-      min-height: 100vh; display: flex; flex-direction: column;
+      display: flex;
+      flex-direction: column;
     }
+
     header {
-      padding: 10px 16px; background: #222; border-bottom: 1px solid #333;
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 14px;
+      background: #111;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
     }
-    main { padding: 12px 16px; max-width: 800px; margin: 0 auto; width: 100%; }
-    #status { font-size: 12px; opacity: 0.7; margin-bottom: 8px; }
-    form { margin-bottom: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    nav a {
+      text-decoration: none;
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      background: transparent;
+    }
+
+    nav a:hover {
+      border-color: var(--border-subtle);
+      color: var(--text-main);
+      background: #151515;
+    }
+
+    nav a.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    main {
+      padding: 20px;
+      max-width: 960px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 22px;
+    }
+
+    p.lead {
+      margin: 0 0 16px 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    h2 {
+      margin-top: 24px;
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+
     input {
-      font-size: 13px; padding: 4px 8px; border-radius: 4px;
-      border: 1px solid #444; background: #111; color: #f5f5f5;
+      background: #111;
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 13px;
     }
+
     button {
-      font-size: 13px; padding: 4px 10px; border-radius: 4px;
-      border: 1px solid #555; background: #2a2a2a; color: #f5f5f5;
+      background: #1d1d1d;
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 13px;
       cursor: pointer;
     }
-    button.danger { border-color: #a33; color: #fbb; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { padding: 6px 8px; border-bottom: 1px solid #333; text-align: left; }
-    th { background: #181818; }
-    tr:nth-child(even) td { background: #181818; }
-    .badge {
-      display: inline-block; padding: 0 6px; border-radius: 999px;
-      background: #333; font-size: 11px; margin-left: 4px;
+
+    button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    button.danger {
+      border-color: var(--danger);
+      color: #ffcdd2;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    footer {
+      margin-top: auto;
+      padding: 8px 20px 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-subtle);
+      text-align: right;
     }
   </style>
 </head>
 <body>
+
 <header>
-  <div>Signage Lite Admin – Tenants</div>
-  <div>
-    <a href="/admin.html" style="color:#9cf; font-size:12px; margin-right:8px;">→ Players</a>
-    <button id="reload-btn">Opnieuw laden</button>
+  <div class="brand">
+    <div class="brand-title">Signage Lite – Admin</div>
+    <div class="brand-subtitle">Tenants beheer</div>
   </div>
+  <nav>
+    <a href="/admin.html">Overzicht</a>
+    <a href="/admin-tenants.html" class="active">Tenants</a>
+    <a href="/admin-players.html">Players</a>
+    <a href="/admin-media.html">Media</a>
+    <a href="/admin-playlists.html">Playlists</a>
+  </nav>
 </header>
 
 <main>
-  <div id="status">Laden…</div>
+  <h1>Tenants</h1>
+  <p class="lead">
+    Tenants zijn de bovenste laag in de structuur. Onder een tenant hangen players, media en playlists.
+  </p>
 
-  <form id="tenant-form">
-    <input type="text" id="tenant-name" placeholder="Nieuwe tenant naam" required />
-    <button type="submit">Toevoegen</button>
-  </form>
+  <h2>1. Nieuwe tenant</h2>
+  <input type="text" id="newTenantName" placeholder="Naam tenant…" />
+  <button onclick="createTenant()">Aanmaken</button>
 
-  <table>
+  <h2>2. Bestaande tenants</h2>
+  <table id="tenantsTable">
     <thead>
       <tr>
         <th>ID</th>
@@ -65,121 +205,66 @@
         <th>Acties</th>
       </tr>
     </thead>
-    <tbody id="tenant-tbody">
-    </tbody>
+    <tbody></tbody>
   </table>
 </main>
 
+<footer>
+  Signage Lite v0.x – tenants
+</footer>
+
 <script>
-  const statusEl = document.getElementById("status");
-  const tbodyEl = document.getElementById("tenant-tbody");
-  const reloadBtn = document.getElementById("reload-btn");
-  const form = document.getElementById("tenant-form");
-  const nameInput = document.getElementById("tenant-name");
+async function loadTenants() {
+  const res = await fetch("/api/admin/tenants");
+  const tenants = await res.json();
+  const tbody = document.querySelector("#tenantsTable tbody");
+  tbody.innerHTML = "";
 
-  async function loadTenants() {
-    statusEl.textContent = "Tenants laden...";
-    try {
-      const res = await fetch("/api/admin/tenants");
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || res.statusText);
-      }
-      const tenants = await res.json();
-      renderTenants(tenants);
-      statusEl.textContent = tenants.length
-        ? tenants.length + " tenant(s) geladen."
-        : "Nog geen tenants.";
-    } catch (e) {
-      console.error(e);
-      statusEl.textContent = "Fout bij laden tenants: " + e.message;
-    }
+  tenants.forEach(t => {
+    const row = document.createElement("tr");
+    const created = t.createdAt ? new Date(t.createdAt).toLocaleString() : "-";
+
+    row.innerHTML = `
+      <td>${t.id}</td>
+      <td>${t.name}</td>
+      <td>${created}</td>
+      <td>
+        <button class="danger" onclick="deleteTenant(${t.id})">Verwijderen</button>
+      </td>
+    `;
+
+    tbody.appendChild(row);
+  });
+}
+
+async function createTenant() {
+  const name = document.getElementById("newTenantName").value.trim();
+  if (!name) {
+    alert("Naam is verplicht.");
+    return;
   }
 
-  function renderTenants(tenants) {
-    tbodyEl.innerHTML = "";
-    tenants.forEach((t) => {
-      const tr = document.createElement("tr");
-
-      const created = t.createdAt
-        ? new Date(t.createdAt).toLocaleString()
-        : "-";
-
-      const tdId = document.createElement("td");
-      tdId.textContent = t.id;
-
-      const tdName = document.createElement("td");
-      tdName.textContent = t.name;
-
-      const tdCreated = document.createElement("td");
-      tdCreated.textContent = created;
-
-      const tdActions = document.createElement("td");
-      const delBtn = document.createElement("button");
-      delBtn.textContent = "Verwijderen";
-      delBtn.className = "danger";
-      delBtn.addEventListener("click", async () => {
-        const confirmText =
-          'Tenant "' +
-          t.name +
-          '" (#' +
-          t.id +
-          ') + alle players/media/playlists verwijderen?';
-        if (!confirm(confirmText)) return;
-        try {
-          const res = await fetch("/api/admin/tenants/" + t.id, {
-            method: "DELETE",
-          });
-          if (!res.ok) {
-            const txt = await res.text();
-            throw new Error(txt || res.statusText);
-          }
-          await loadTenants();
-        } catch (e) {
-          alert("Fout bij verwijderen tenant: " + e.message);
-        }
-      });
-
-      tdActions.appendChild(delBtn);
-
-      tr.appendChild(tdId);
-      tr.appendChild(tdName);
-      tr.appendChild(tdCreated);
-      tr.appendChild(tdActions);
-
-      tbodyEl.appendChild(tr);
-    });
-  }
-
-  form.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    const name = nameInput.value.trim();
-    if (!name) return;
-
-    try {
-      const res = await fetch("/api/admin/tenants", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || res.statusText);
-      }
-      nameInput.value = "";
-      await loadTenants();
-    } catch (e) {
-      alert("Fout bij aanmaken tenant: " + e.message);
-    }
+  await fetch("/api/admin/tenants", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
   });
 
-  reloadBtn.addEventListener("click", () => {
-    loadTenants();
+  document.getElementById("newTenantName").value = "";
+  loadTenants();
+}
+
+async function deleteTenant(id) {
+  if (!confirm("Tenant en alle onderliggende data verwijderen?")) return;
+
+  await fetch(`/api/admin/tenants/${id}`, {
+    method: "DELETE",
   });
 
-  window.addEventListener("load", () => {
-    loadTenants();
-  });
+  loadTenants();
+}
+
+loadTenants();
 </script>
 
 </body>

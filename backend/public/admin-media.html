@@ -2,116 +2,232 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <title>Signage Lite Admin – Media</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signage Lite – Media</title>
   <style>
+    :root {
+      --bg: #0b0b0b;
+      --bg-elevated: #181818;
+      --border-subtle: #303030;
+      --accent: #4cafef;
+      --accent-soft: rgba(76, 175, 239, 0.15);
+      --text-main: #f5f5f5;
+      --text-muted: #9a9a9a;
+      --danger: #e57373;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
     body {
-      background: #111;
-      color: #f5f5f5;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    header {
-      background: #222;
-      padding: 10px 16px;
-      border-bottom: 1px solid #333;
       display: flex;
-      gap: 12px;
-      align-items: center;
+      flex-direction: column;
     }
-    header a {
-      color: #9cf;
+
+    header {
+      background: #111;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    nav a {
       text-decoration: none;
       font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      background: transparent;
     }
+
+    nav a:hover {
+      border-color: var(--border-subtle);
+      color: var(--text-main);
+      background: #151515;
+    }
+
+    nav a.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
     main {
-      padding: 16px;
-      max-width: 1000px;
+      padding: 20px;
+      max-width: 1100px;
       margin: 0 auto;
+      width: 100%;
     }
-    #status {
-      font-size: 12px;
-      opacity: 0.7;
-      margin-bottom: 10px;
+
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 22px;
     }
-    form {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 12px;
-      align-items: center;
+
+    p.lead {
+      margin: 0 0 16px 0;
+      color: var(--text-muted);
+      font-size: 13px;
     }
+
+    h2 {
+      margin-top: 24px;
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+
+    label {
+      font-size: 13px;
+      margin-right: 4px;
+    }
+
     input, select {
       background: #111;
-      color: #f5f5f5;
-      border: 1px solid #444;
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
       border-radius: 4px;
       padding: 4px 8px;
       font-size: 13px;
     }
+
     button {
-      background: #2a2a2a;
-      color: #f5f5f5;
-      border: 1px solid #555;
+      background: #1d1d1d;
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
       border-radius: 4px;
-      padding: 4px 8px;
+      padding: 4px 10px;
       font-size: 13px;
       cursor: pointer;
     }
-    button.danger {
-      border-color: #a33;
-      color: #fbb;
+
+    button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
     }
+
+    button.danger {
+      border-color: var(--danger);
+      color: #ffcdd2;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
+      margin-top: 12px;
       font-size: 13px;
     }
+
     th, td {
       padding: 6px 8px;
-      border-bottom: 1px solid #333;
+      border-bottom: 1px solid var(--border-subtle);
       text-align: left;
+      vertical-align: middle;
     }
+
     th {
-      background: #181818;
+      color: var(--text-muted);
+      font-weight: 500;
     }
-    tr:nth-child(even) td {
-      background: #181818;
-    }
-    .badge {
-      display: inline-block;
-      padding: 0 6px;
-      border-radius: 999px;
-      background: #333;
-      font-size: 11px;
-      margin-left: 4px;
+
+    td.url-cell {
+      max-width: 340px;
+      word-break: break-all;
     }
   </style>
 </head>
 <body>
 
 <header>
-  <a href="/admin-tenants.html">← Tenants</a>
-  <a href="/admin-players.html">Players</a>
-  <strong style="margin-left:auto;">Media</strong>
-  <select id="tenant-select"></select>
-  <button id="reload-btn">Laden</button>
+  <div class="brand">
+    <div class="brand-title">Signage Lite – Admin</div>
+    <div class="brand-subtitle">Media beheer</div>
+  </div>
+  <nav>
+    <a href="/admin.html">Overzicht</a>
+    <a href="/admin-tenants.html">Tenants</a>
+    <a href="/admin-players.html">Players</a>
+    <a href="/admin-media.html" class="active">Media</a>
+    <a href="/admin-playlists.html">Playlists</a>
+  </nav>
 </header>
 
 <main>
-  <div id="status">Kies een tenant om media te bekijken.</div>
+  <h1>Media</h1>
+  <p class="lead">
+    Media is gekoppeld aan een tenant en wordt gebruikt in playlists. Voor nu werken we met URL’s; upload komt later.
+  </p>
 
-  <form id="media-form">
-    <input id="media-filename" placeholder="Bestandsnaam" required />
-    <input id="media-url" placeholder="URL (https://...)" required />
-    <input id="media-mime" placeholder="MIME type (image/jpeg)" required />
-    <select id="media-type">
-      <option value="IMAGE">IMAGE</option>
-      <option value="VIDEO">VIDEO</option>
-    </select>
-    <button type="submit">Toevoegen</button>
-  </form>
+  <h2>1. Tenant & nieuwe media</h2>
 
-  <table>
+  <label>Tenant:</label>
+  <select id="tenantSelect"></select>
+
+  <br><br>
+
+  <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end;">
+    <div>
+      <label for="filename">Bestandsnaam</label><br>
+      <input type="text" id="filename" placeholder="bijv. promo-beeld.jpg" />
+    </div>
+    <div style="min-width:260px;">
+      <label for="url">URL</label><br>
+      <input type="text" id="url" placeholder="https://…" style="min-width:260px;" />
+    </div>
+    <div>
+      <label for="mimeType">MIME-type</label><br>
+      <input type="text" id="mimeType" placeholder="image/jpeg" />
+    </div>
+    <div>
+      <label for="mediaType">Type</label><br>
+      <select id="mediaType">
+        <option value="IMAGE">IMAGE</option>
+        <option value="VIDEO">VIDEO</option>
+      </select>
+    </div>
+    <div>
+      <button onclick="createMedia()">Toevoegen</button>
+    </div>
+  </div>
+
+  <h2>2. Bestaande media</h2>
+
+  <table id="mediaTable">
     <thead>
       <tr>
         <th>ID</th>
@@ -122,153 +238,97 @@
         <th>Acties</th>
       </tr>
     </thead>
-    <tbody id="media-tbody"></tbody>
+    <tbody></tbody>
   </table>
 </main>
 
+<footer>
+  Signage Lite v0.x – media
+</footer>
+
 <script>
-  const tenantSelect = document.getElementById("tenant-select");
-  const statusEl = document.getElementById("status");
-  const tbodyEl = document.getElementById("media-tbody");
-  const reloadBtn = document.getElementById("reload-btn");
-  const form = document.getElementById("media-form");
+async function loadTenants() {
+  const res = await fetch("/api/admin/tenants");
+  const tenants = await res.json();
+  const select = document.getElementById("tenantSelect");
 
-  async function loadTenants() {
-    const res = await fetch("/api/admin/tenants");
-    if (!res.ok) {
-      statusEl.textContent = "Fout bij laden tenants.";
-      return;
-    }
-    const tenants = await res.json();
-    tenantSelect.innerHTML = "";
-    tenants.forEach(t => {
-      const opt = document.createElement("option");
-      opt.value = t.id;
-      opt.textContent = `${t.id} – ${t.name}`;
-      tenantSelect.appendChild(opt);
-    });
-    if (tenants.length) {
-      loadMedia();
-    } else {
-      statusEl.textContent = "Nog geen tenants.";
-    }
-  }
-
-  async function loadMedia() {
-    const tenantId = tenantSelect.value;
-    if (!tenantId) {
-      statusEl.textContent = "Kies een tenant.";
-      return;
-    }
-
-    statusEl.textContent = "Media laden…";
-
-    const res = await fetch(`/api/admin/tenants/${tenantId}/media`);
-    if (!res.ok) {
-      const txt = await res.text();
-      statusEl.textContent = "Fout bij laden media: " + txt;
-      return;
-    }
-    const media = await res.json();
-
-    tbodyEl.innerHTML = "";
-    if (!media.length) {
-      statusEl.textContent = "Geen media voor deze tenant.";
-      return;
-    }
-
-    media.forEach(m => {
-      const tr = document.createElement("tr");
-
-      const tdId = document.createElement("td");
-      tdId.textContent = m.id;
-
-      const tdFilename = document.createElement("td");
-      tdFilename.textContent = m.filename;
-
-      const tdType = document.createElement("td");
-      tdType.textContent = m.mediaType;
-      const tdMime = document.createElement("td");
-      tdMime.textContent = m.mimeType;
-
-      const tdUrl = document.createElement("td");
-      const a = document.createElement("a");
-      a.href = m.url;
-      a.textContent = "Open";
-      a.target = "_blank";
-      a.style.color = "#9cf";
-      tdUrl.appendChild(a);
-
-      const tdActions = document.createElement("td");
-      const delBtn = document.createElement("button");
-      delBtn.textContent = "Delete";
-      delBtn.className = "danger";
-      delBtn.addEventListener("click", async () => {
-        if (!confirm(`Media "${m.filename}" (#${m.id}) verwijderen?`)) return;
-        const delRes = await fetch(`/api/admin/media/${m.id}`, {
-          method: "DELETE",
-        });
-        if (!delRes.ok) {
-          const txt = await delRes.text();
-          alert("Fout bij verwijderen: " + txt);
-          return;
-        }
-        loadMedia();
-      });
-      tdActions.appendChild(delBtn);
-
-      tr.appendChild(tdId);
-      tr.appendChild(tdFilename);
-      tr.appendChild(tdType);
-      tr.appendChild(tdMime);
-      tr.appendChild(tdUrl);
-      tr.appendChild(tdActions);
-
-      tbodyEl.appendChild(tr);
-    });
-
-    statusEl.textContent = `${media.length} media-item(s) geladen.`;
-  }
-
-  form.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    const tenantId = tenantSelect.value;
-    if (!tenantId) {
-      alert("Kies eerst een tenant.");
-      return;
-    }
-
-    const filename = document.getElementById("media-filename").value.trim();
-    const url = document.getElementById("media-url").value.trim();
-    const mimeType = document.getElementById("media-mime").value.trim();
-    const mediaType = document.getElementById("media-type").value;
-
-    if (!filename || !url || !mimeType) return;
-
-    const res = await fetch(`/api/admin/tenants/${tenantId}/media`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename, url, mimeType, mediaType }),
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      alert("Fout bij toevoegen media: " + txt);
-      return;
-    }
-
-    document.getElementById("media-filename").value = "";
-    document.getElementById("media-url").value = "";
-    document.getElementById("media-mime").value = "";
-    loadMedia();
+  select.innerHTML = "";
+  tenants.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t.id;
+    opt.textContent = t.name;
+    select.appendChild(opt);
   });
 
-  reloadBtn.addEventListener("click", loadMedia);
-  tenantSelect.addEventListener("change", loadMedia);
+  select.onchange = loadMedia;
+  loadMedia();
+}
 
-  window.addEventListener("load", loadTenants);
+async function loadMedia() {
+  const tenantId = document.getElementById("tenantSelect").value;
+  if (!tenantId) return;
+
+  const res = await fetch(`/api/admin/tenants/${tenantId}/media`);
+  const media = await res.json();
+
+  const tbody = document.querySelector("#mediaTable tbody");
+  tbody.innerHTML = "";
+
+  media.forEach(m => {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>${m.id}</td>
+      <td>${m.filename}</td>
+      <td>${m.mediaType}</td>
+      <td>${m.mimeType}</td>
+      <td class="url-cell"><a href="${m.url}" target="_blank" style="color: var(--accent); text-decoration:none;">${m.url}</a></td>
+      <td>
+        <button class="danger" onclick="deleteMedia(${m.id})">Verwijderen</button>
+      </td>
+    `;
+
+    tbody.appendChild(row);
+  });
+}
+
+async function createMedia() {
+  const tenantId = document.getElementById("tenantSelect").value;
+  const filename = document.getElementById("filename").value.trim();
+  const url = document.getElementById("url").value.trim();
+  const mimeType = document.getElementById("mimeType").value.trim();
+  const mediaType = document.getElementById("mediaType").value;
+
+  if (!tenantId) return alert("Selecteer een tenant.");
+  if (!filename || !url || !mimeType || !mediaType) {
+    alert("Alle velden zijn verplicht.");
+    return;
+  }
+
+  await fetch(`/api/admin/tenants/${tenantId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename, url, mimeType, mediaType }),
+  });
+
+  document.getElementById("filename").value = "";
+  document.getElementById("url").value = "";
+  document.getElementById("mimeType").value = "";
+  loadMedia();
+}
+
+async function deleteMedia(id) {
+  if (!confirm("Media verwijderen? Dit verwijdert ook koppelingen in playlists.")) return;
+
+  await fetch(`/api/admin/media/${id}`, {
+    method: "DELETE",
+  });
+
+  loadMedia();
+}
+
+loadTenants();
 </script>
 
 </body>
 </html>
-

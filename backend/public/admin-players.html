@@ -2,62 +2,172 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <title>Players beheer</title>
-
+  <title>Signage Lite – Players</title>
   <style>
+    :root {
+      --bg: #0b0b0b;
+      --bg-elevated: #181818;
+      --border-subtle: #303030;
+      --accent: #4cafef;
+      --accent-soft: rgba(76, 175, 239, 0.15);
+      --text-main: #f5f5f5;
+      --text-muted: #9a9a9a;
+      --danger: #e57373;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
     body {
-      background: #111;
-      color: #f5f5f5;
-      font-family: system-ui;
-    }
-    header {
-      background: #222;
-      padding: 10px 16px;
-      border-bottom: 1px solid #333;
       display: flex;
-      gap: 12px;
+      flex-direction: column;
+    }
+
+    header {
+      background: #111;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 10px 20px;
+      display: flex;
       align-items: center;
+      justify-content: space-between;
+      gap: 24px;
     }
-    header a {
-      color: #f5f5f5;
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    nav a {
       text-decoration: none;
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      background: transparent;
     }
+
+    nav a:hover {
+      border-color: var(--border-subtle);
+      color: var(--text-main);
+      background: #151515;
+    }
+
+    nav a.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
     main {
-      padding: 16px;
-      max-width: 900px;
+      padding: 20px;
+      max-width: 1100px;
       margin: 0 auto;
+      width: 100%;
     }
+
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 22px;
+    }
+
+    p.lead {
+      margin: 0 0 16px 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    h2 {
+      margin-top: 24px;
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+
+    label {
+      font-size: 13px;
+      margin-right: 4px;
+    }
+
+    input, select {
+      background: #111;
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+
+    button {
+      background: #1d1d1d;
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    button.danger {
+      border-color: var(--danger);
+      color: #ffcdd2;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 12px;
+      font-size: 13px;
     }
+
     th, td {
       padding: 6px 8px;
-      border-bottom: 1px solid #333;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+      vertical-align: middle;
     }
-    button {
-      background: #2a2a2a;
-      color: #fff;
-      border: 1px solid #555;
-      border-radius: 4px;
-      padding: 4px 8px;
-      cursor: pointer;
+
+    th {
+      color: var(--text-muted);
+      font-weight: 500;
     }
-    button.danger {
-      border-color: #a33;
-      color: #fbb;
-    }
-    input, select {
-      background: #111;
-      color: #fff;
-      border: 1px solid #333;
-      border-radius: 4px;
-      padding: 4px 8px;
-    }
-    h2 {
-      margin-top: 24px;
-      margin-bottom: 6px;
+
+    td input[type="text"] {
+      width: 90px;
+      text-align: center;
     }
   </style>
 </head>
@@ -65,11 +175,25 @@
 <body>
 
 <header>
-  <a href="/admin.html">← Admin</a>
-  <h1>Players</h1>
+  <div class="brand">
+    <div class="brand-title">Signage Lite – Admin</div>
+    <div class="brand-subtitle">Players & device koppelingen</div>
+  </div>
+  <nav>
+    <a href="/admin.html">Overzicht</a>
+    <a href="/admin-tenants.html">Tenants</a>
+    <a href="/admin-players.html" class="active">Players</a>
+    <a href="/admin-media.html">Media</a>
+    <a href="/admin-playlists.html">Playlists</a>
+  </nav>
 </header>
 
 <main>
+  <h1>Players</h1>
+  <p class="lead">
+    Players horen bij een tenant en worden gekoppeld aan devices. De schermresolutie wordt automatisch doorgegeven door de player-app.
+  </p>
+
   <h2>1. Tenant & nieuwe player</h2>
 
   <label>Tenant:</label>
@@ -86,21 +210,24 @@
   <h2>2. Bestaande players</h2>
 
   <table id="playersTable">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Naam</th>
-      <th>Locatie</th>
-      <th>Device</th>
-      <th>Screen</th>
-      <th>Canvas (actieve playlist)</th>
-      <th>Pairing</th>
-      <th>Acties</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Naam</th>
+        <th>Locatie</th>
+        <th>Scherm</th>
+        <th>Device</th>
+        <th>Pairing</th>
+        <th>Acties</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 </main>
+
+<footer>
+  Signage Lite v0.x – players
+</footer>
 
 <script>
 async function loadTenants() {
@@ -131,54 +258,26 @@ async function loadPlayers() {
   tbody.innerHTML = "";
 
   players.forEach(p => {
-  const row = document.createElement("tr");
+    const row = document.createElement("tr");
 
-  // Device info
-  let deviceInfo = "—";
-  if (p.device) {
-    deviceInfo = `${p.device.platform || "device"} — ${
-      p.device.deviceName || "naam onbekend"
-    }`;
-  }
-
-  // Screen info (laatste gemeten resolutie vanuit player)
-  let screenText = "onbekend";
-  if (p.screenWidth && p.screenHeight) {
-    screenText = `${p.screenWidth}×${p.screenHeight}`;
-  }
-
-  // Actieve playlist + canvas
-  let canvasText = "geen actieve playlist";
-  let ratioText = "";
-
-  if (Array.isArray(p.playlists) && p.playlists.length > 0) {
-    const active = p.playlists.find(pl => pl.isActive);
-    if (active && active.designWidth && active.designHeight) {
-      canvasText = `${active.designWidth}×${active.designHeight}`;
-
-      if (p.screenWidth && p.screenHeight) {
-        const canvasRatio = active.designWidth / active.designHeight;
-        const screenRatio = p.screenWidth / p.screenHeight;
-        const diff = Math.abs(canvasRatio - screenRatio);
-
-        if (diff < 0.05) {
-          ratioText = " — ratio OK";
-        } else {
-          ratioText = " — ratio afwijkend";
-        }
-      }
-    } else if (active) {
-      canvasText = "actieve playlist (canvas onbekend)";
+    let deviceInfo = "—";
+    if (p.device) {
+      deviceInfo = `${p.device.platform || "device"} — ${
+        p.device.deviceName || "naam onbekend"
+      }`;
     }
-  }
 
-  row.innerHTML = `
+    let screenInfo = "onbekend";
+    if (p.screenWidth && p.screenHeight) {
+      screenInfo = `${p.screenWidth}×${p.screenHeight}`;
+    }
+
+    row.innerHTML = `
       <td>${p.id}</td>
       <td>${p.name}</td>
       <td>${p.location || ""}</td>
+      <td>${screenInfo}</td>
       <td>${deviceInfo}</td>
-      <td>${screenText}</td>
-      <td>${canvasText}${ratioText}</td>
       <td>
         <input
           type="text"
@@ -194,9 +293,8 @@ async function loadPlayers() {
       </td>
     `;
 
-  tbody.appendChild(row);
-});
-
+    tbody.appendChild(row);
+  });
 }
 
 async function createPlayer() {

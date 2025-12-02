@@ -2,154 +2,242 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <title>Signage Lite Admin – players</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signage Lite – Admin</title>
   <style>
+    :root {
+      --bg: #0b0b0b;
+      --bg-elevated: #181818;
+      --border-subtle: #303030;
+      --accent: #4cafef;
+      --accent-soft: rgba(76, 175, 239, 0.15);
+      --text-main: #f5f5f5;
+      --text-muted: #9a9a9a;
+      --danger: #e57373;
+    }
+
     * {
       box-sizing: border-box;
+    }
+
+    html, body {
       margin: 0;
       padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
+
     body {
-      background: #111;
-      color: #f5f5f5;
-      min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
+
     header {
-      padding: 10px 16px;
-      background: #222;
-      border-bottom: 1px solid #333;
+      background: #111;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 10px 20px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      font-size: 14px;
+      justify-content: space-between;
+      gap: 24px;
     }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    nav a {
+      text-decoration: none;
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      background: transparent;
+    }
+
+    nav a:hover {
+      border-color: var(--border-subtle);
+      color: var(--text-main);
+      background: #151515;
+    }
+
+    nav a.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
     main {
-      padding: 12px 16px;
-    }
-    #status {
-      font-size: 12px;
-      opacity: 0.7;
-      margin-bottom: 8px;
-    }
-    table {
+      padding: 20px;
+      max-width: 960px;
+      margin: 0 auto;
       width: 100%;
-      border-collapse: collapse;
+    }
+
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 22px;
+    }
+
+    p.lead {
+      margin: 0 0 20px 0;
+      color: var(--text-muted);
       font-size: 13px;
     }
-    th, td {
-      padding: 6px 8px;
-      border-bottom: 1px solid #333;
-      text-align: left;
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 10px;
     }
-    th {
-      background: #181818;
+
+    .card {
+      background: var(--bg-elevated);
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      padding: 14px 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
-    tr:nth-child(even) td {
-      background: #181818;
+
+    .card h2 {
+      margin: 0;
+      font-size: 15px;
     }
-    .badge {
-      display: inline-block;
-      padding: 0 6px;
-      border-radius: 999px;
-      background: #333;
-      font-size: 11px;
-      margin-left: 4px;
-    }
-    button {
+
+    .card p {
+      margin: 0;
       font-size: 12px;
-      padding: 4px 8px;
-      border-radius: 4px;
-      border: 1px solid #555;
-      background: #2a2a2a;
-      color: #f5f5f5;
+      color: var(--text-muted);
+    }
+
+    .card-footer {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .card a.button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: #1d1d1d;
+      color: var(--text-main);
+      text-decoration: none;
       cursor: pointer;
+    }
+
+    .card a.button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    footer {
+      margin-top: auto;
+      padding: 8px 20px 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-subtle);
+      text-align: right;
     }
   </style>
 </head>
 <body>
+
 <header>
-  <div>Signage Lite Admin – players</div>
-  <button id="reload-btn">Opnieuw laden</button>
+  <div class="brand">
+    <div class="brand-title">Signage Lite – Admin</div>
+    <div class="brand-subtitle">Basisbeheer voor tenants, players, media en playlists</div>
+  </div>
+  <nav>
+    <a href="/admin.html" class="active">Overzicht</a>
+    <a href="/admin-tenants.html">Tenants</a>
+    <a href="/admin-players.html">Players</a>
+    <a href="/admin-media.html">Media</a>
+    <a href="/admin-playlists.html">Playlists</a>
+  </nav>
 </header>
 
 <main>
-  <div id="status">Laden…</div>
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Naam</th>
-        <th>Locatie</th>
-        <th>Tenant</th>
-        <th>Device</th>
-      </tr>
-    </thead>
-    <tbody id="player-tbody">
-    </tbody>
-  </table>
+  <h1>Overzicht</h1>
+  <p class="lead">
+    Dit is het tijdelijke admin-dashboard voor versie 0.x. Vanuit hier kun je snel naar de
+    belangrijkste beheerpagina’s springen. De logica en API blijven leidend, de GUI is bewust licht.
+  </p>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Tenants</h2>
+      <p>
+        Beheer klanten/organisaties. Tenants zijn de bovenliggende container voor players, media en playlists.
+      </p>
+      <div class="card-footer">
+        <a class="button" href="/admin-tenants.html">Naar tenants</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Players</h2>
+      <p>
+        Beheer signage players, koppeling met devices en schermresolutie. Hier zie je ook de pairing-informatie.
+      </p>
+      <div class="card-footer">
+        <a class="button" href="/admin-players.html">Naar players</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Media</h2>
+      <p>
+        Upload of registreer media-items (voor nu via URL). Deze worden gebruikt in playlists per tenant.
+      </p>
+      <div class="card-footer">
+        <a class="button" href="/admin-media.html">Naar media</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Playlists</h2>
+      <p>
+        Beheer playlists per player, volgorde van items en fit-mode. Vanuit hier ga je door naar playlist-items.
+      </p>
+      <div class="card-footer">
+        <a class="button" href="/admin-playlists.html">Naar playlists</a>
+      </div>
+    </section>
+  </div>
 </main>
 
-<script>
-  const statusEl = document.getElementById("status");
-  const tbodyEl = document.getElementById("player-tbody");
-  const reloadBtn = document.getElementById("reload-btn");
+<footer>
+  Signage Lite v0.x – voorlopige admin UI (logic-first)
+</footer>
 
-  async function loadPlayers() {
-    statusEl.textContent = "Players laden…";
-
-    try {
-      const res = await fetch("/api/admin/players");
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || res.statusText);
-      }
-      const players = await res.json();
-
-      tbodyEl.innerHTML = "";
-
-      if (!players.length) {
-        statusEl.textContent = "Geen players gevonden.";
-        return;
-      }
-
-      players.forEach((p) => {
-        const tr = document.createElement("tr");
-
-        const tenantName = p.tenant ? p.tenant.name : "-";
-        const deviceInfo = p.device
-          ? `#${p.device.id} (${p.device.platform})`
-          : "–";
-
-        tr.innerHTML = `
-          <td>${p.id}</td>
-          <td>${p.name}</td>
-          <td>${p.location || "–"}</td>
-          <td>${tenantName}</td>
-          <td>${deviceInfo}</td>
-        `;
-
-        tbodyEl.appendChild(tr);
-      });
-
-      statusEl.textContent = `${players.length} player(s) geladen.`;
-    } catch (e) {
-      console.error(e);
-      statusEl.textContent = "Fout bij laden: " + e.message;
-    }
-  }
-
-  reloadBtn.addEventListener("click", () => {
-    loadPlayers();
-  });
-
-  window.addEventListener("load", () => {
-    loadPlayers();
-  });
-</script>
 </body>
 </html>
-
