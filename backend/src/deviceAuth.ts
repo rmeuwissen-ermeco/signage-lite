@@ -1,19 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "./prisma";
 
-/**
- * Express Request + extra device-info.
- * We definiëren body als any om TypeScript niet in de weg te laten zitten
- * bij het parsen van JSON bodies in middleware en routes.
- */
-export interface DeviceRequest extends Request {
+// Express Request + extra device-info.
+export type DeviceRequest = Request & {
   device?: {
     id: number;
     playerId: number;
     tenantId: number;
   };
-  body: any;
-}
+};
 
 export async function deviceAuth(
   req: DeviceRequest,
@@ -21,7 +16,6 @@ export async function deviceAuth(
   next: NextFunction
 ) {
   try {
-    // Gebruik headers i.p.v. req.header() om type-gedoe te vermijden
     const rawAuthHeader =
       (req.headers["authorization"] as string | undefined) ??
       (req.headers["Authorization"] as string | undefined);
