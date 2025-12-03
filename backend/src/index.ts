@@ -540,7 +540,7 @@ app.get("/api/device/playlist", deviceAuth, async (req: DeviceRequest, res) => {
           include: { media: true },
           orderBy: { sortOrder: "asc" },
         },
-        player: true, // extra info beschikbaar
+        player: true,
       },
     });
 
@@ -562,9 +562,8 @@ app.get("/api/device/playlist", deviceAuth, async (req: DeviceRequest, res) => {
       type: item.media.mediaType,
       url: item.media.url,
       durationSec: item.durationSec ?? null,
-
-      // 🔽 NIEUW: overgang naar volgende slide
-      transitionType: item.transitionType ?? "FADE",
+      // overgang naar volgende slide
+      transitionType: item.transitionType ?? "NONE",
       transitionDurationMs: item.transitionDurationMs ?? 1000,
     }));
 
@@ -647,7 +646,6 @@ app.post("/api/admin/playlist-items/:id/transition", async (req, res) => {
       transitionDurationMs?: number;
     };
 
-    // Alleen bekende types toestaan; fallback naar "NONE"
     const allowedTypes = ["NONE", "FADE"] as const;
     let safeType: (typeof allowedTypes)[number] = "NONE";
 
@@ -658,24 +656,21 @@ app.post("/api/admin/playlist-items/:id/transition", async (req, res) => {
       }
     }
 
-    // Duur in ms, 0–10000, alleen relevant bij FADE
     let safeDurationMs = 0;
     if (safeType === "FADE") {
       const rawMs =
         typeof transitionDurationMs === "number" && Number.isFinite(transitionDurationMs)
           ? transitionDurationMs
-          : 1000; // default 1s
+          : 1000;
 
       safeDurationMs = Math.min(Math.max(rawMs, 0), 10000);
     }
 
-    // Bestaand item ophalen om playlistId te weten
     const existing = await prisma.playlistItem.findUnique({ where: { id } });
     if (!existing) {
       return res.status(404).json({ error: "Playlist-item niet gevonden" });
     }
 
-    // Item updaten
     const updated = await prisma.playlistItem.update({
       where: { id },
       data: {
@@ -684,7 +679,6 @@ app.post("/api/admin/playlist-items/:id/transition", async (req, res) => {
       },
     });
 
-    // Playlist-versie ophogen zodat de player de wijziging ziet
     await prisma.playlist.update({
       where: { id: existing.playlistId },
       data: { version: { increment: 1 } },

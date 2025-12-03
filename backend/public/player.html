@@ -122,7 +122,7 @@
       .slideLayer video {
         max-width: 100%;
         max-height: 100%;
-        object-fit: contain; /* wordt door JS aangepast */
+        object-fit: contain;
         display: block;
         background: #000;
       }
@@ -302,7 +302,6 @@
       function showPairingScreen() {
         pairingScreen.style.display = "flex";
         playbackScreen.style.display = "none";
-        // tijdens eerste register houden we overlay aan tot pairing code binnen is
       }
 
       function showPlaybackScreen() {
@@ -436,7 +435,8 @@
         let completed = 0;
 
         if (loadingTextEl) {
-          loadingTextEl.textContent = `Player is content aan het downloaden… (0/${total})`;
+          loadingTextEl.textContent =
+            `Player is content aan het downloaden… (0/${total})`;
         }
 
         const tasks = playlist.items.map((item) => {
@@ -452,7 +452,8 @@
           return p.finally(() => {
             completed += 1;
             if (loadingTextEl) {
-              loadingTextEl.textContent = `Player is content aan het downloaden… (${completed}/${total})`;
+              loadingTextEl.textContent =
+                `Player is content aan het downloaden… (${completed}/${total})`;
             }
           });
         });
@@ -507,7 +508,6 @@
             : 1000;
         const fadeMs = transitionType === "FADE" ? rawMs : 0;
 
-        // CSS transition duur zetten op beide layers
         const durationSec = Math.max(fadeMs, 0) / 1000;
         activeLayer.root.style.setProperty(
           "--transition-duration",
@@ -518,11 +518,9 @@
           `${durationSec}s`
         );
 
-        // FitMode toepassen voor deze playlist
         applyFitModeToLayer(activeLayer, currentPlaylist.fitMode);
         applyFitModeToLayer(inactiveLayer, currentPlaylist.fitMode);
 
-        // Eerst de slide preloadden in de INACTIEVE layer
         const targetLayer = inactiveLayer;
 
         if (item.type === "IMAGE") {
@@ -532,11 +530,9 @@
             console.error("Preload error (image):", e);
           }
 
-          // Video in targetlaag uitzetten
           targetLayer.video.pause();
           targetLayer.video.style.display = "none";
 
-          // Afbeelding tonen
           targetLayer.image.style.display = "block";
           targetLayer.image.src = item.url;
         } else if (item.type === "VIDEO") {
@@ -561,22 +557,14 @@
           console.warn("Onbekend item type:", item.type);
         }
 
-        // Crossfade: active → inactive
-        if (fadeMs > 0) {
-          activeLayer.root.classList.remove("active");
-          targetLayer.root.classList.add("active");
-        } else {
-          // Geen fade: direct omschakelen
-          activeLayer.root.classList.remove("active");
-          targetLayer.root.classList.add("active");
-        }
+        // Crossfade (of directe wissel bij fadeMs=0)
+        activeLayer.root.classList.remove("active");
+        targetLayer.root.classList.add("active");
 
-        // Layers wisselen voor de volgende call
         swapLayers();
 
         const slideDurationMs = (item.durationSec ?? 10) * 1000;
 
-        // Preload volgende slide alvast
         const nextItem = currentPlaylist.items[nextIndex];
         if (nextItem && nextItem.type === "IMAGE") {
           preloadImage(nextItem.url).catch(() => {});
@@ -632,7 +620,6 @@
           }
 
           if (data.version === lastPlaylistVersion) {
-            // niets veranderd, gewoon doorspelen
             return;
           }
 
@@ -651,7 +638,6 @@
 
           startPlaybackWithPlaylist(data);
         } catch (err) {
-          // BELANGRIJK: niet resetten bij netwerkfout; huidige playlist blijft lopen
           console.error("Netwerkfout bij ophalen playlist:", err);
           updateDebugOverlay({
             message: "Netwerkfout bij ophalen playlist; huidige loopt door",
