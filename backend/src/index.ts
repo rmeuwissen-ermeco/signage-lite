@@ -320,6 +320,16 @@ app.post("/api/admin/players/:playerId/pair-with-code", async (req, res) => {
 
     const now = new Date();
 
+    // 1) Bestaat de player?
+    const player = await prisma.player.findUnique({
+      where: { id: playerId },
+    });
+
+    if (!player) {
+      return res.status(404).json({ error: "Player niet gevonden" });
+    }
+
+    // 2) Zoek het device bij deze pairing code dat nog geldig is
     const device = await prisma.device.findFirst({
       where: {
         pairingCode,
@@ -329,25 +339,40 @@ app.post("/api/admin/players/:playerId/pair-with-code", async (req, res) => {
 
     if (!device) {
       return res
-        .status(404)
-        .json({ error: "Geen actief device gevonden voor deze pairing code" });
+        .status(400)
+        .json({ error: "Ongeldige of verlopen pairingCode" });
     }
 
     const deviceToken = generateDeviceToken();
 
-    const updated = await prisma.device.update({
-      where: { id: device.id },
-      data: {
-        playerId,
-        deviceToken,
-        pairingCode: null,
-        pairingExpires: null,
-      },
+    // 3) In één transactie:
+    //    - alle bestaande devices van deze player loskoppelen
+    //    - dit device koppelen aan de player
+    await prisma.$transaction(async (tx) => {
+      await tx.device.updateMany({
+        where: { playerId },
+        data: {
+          playerId: null,
+          deviceToken: null,
+          pairingCode: null,
+          pairingExpires: null,
+        },
+      });
+
+      await tx.device.update({
+        where: { id: device.id },
+        data: {
+          playerId,
+          deviceToken,
+          pairingCode: null,
+          pairingExpires: null,
+        },
+      });
     });
 
     return res.json({
       ok: true,
-      deviceId: updated.id,
+      deviceId: device.id,
       playerId,
       deviceToken,
     });
