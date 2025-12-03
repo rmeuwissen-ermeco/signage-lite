@@ -135,6 +135,7 @@
       padding: 4px 10px;
       font-size: 13px;
       cursor: pointer;
+      margin-right: 4px;
     }
 
     button:hover {
@@ -238,6 +239,8 @@
         <th>Media</th>
         <th>Type</th>
         <th>Duur</th>
+        <th>Transitie</th>
+        <th>Transitie-duur (s)</th>
         <th>Acties</th>
       </tr>
     </thead>
@@ -277,26 +280,126 @@ async function loadItems() {
   const res = await fetch(`/api/admin/playlists/${playlistId}/items`);
   const items = await res.json();
 
-  currentItems = items.sort((a, b) => a.sortOrder - b.sortOrder);
+  // sorteren op sortOrder, zodat de UI netjes is
+  currentItems = items.slice().sort((a, b) => a.sortOrder - b.sortOrder);
 
   const tbody = document.querySelector("#itemsTable tbody");
   tbody.innerHTML = "";
 
   currentItems.forEach((item, index) => {
-    const mediaName = item.media ? `${item.media.id} — ${item.media.filename}` : "(media ontbreekt)";
+    const mediaName = item.media
+      ? `${item.media.id} — ${item.media.filename}`
+      : "(media ontbreekt)";
 
     const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${item.sortOrder}</td>
-      <td>${mediaName}</td>
-      <td>${item.media?.mediaType || ""}</td>
-      <td>${item.durationSec}</td>
-      <td>
-        <button onclick="moveUp(${index})">▲</button>
-        <button onclick="moveDown(${index})">▼</button>
-        <button class="danger" onclick="deleteItem(${item.id})">Verwijderen</button>
-      </td>
-    `;
+
+    // SortOrder
+    const tdSort = document.createElement("td");
+    tdSort.textContent = item.sortOrder;
+    row.appendChild(tdSort);
+
+    // Media
+    const tdMedia = document.createElement("td");
+    tdMedia.textContent = mediaName;
+    row.appendChild(tdMedia);
+
+    // Type
+    const tdType = document.createElement("td");
+    tdType.textContent = item.media?.mediaType || "";
+    row.appendChild(tdType);
+
+    // Duur
+    const tdDuration = document.createElement("td");
+    tdDuration.textContent = item.durationSec;
+    row.appendChild(tdDuration);
+
+    // Transitie-type (select)
+    const tdTransition = document.createElement("td");
+    const sel = document.createElement("select");
+
+    const opts = [
+      { value: "NONE", label: "Geen" },
+      { value: "FADE", label: "Fade" }
+    ];
+
+    opts.forEach(opt => {
+      const o = document.createElement("option");
+      o.value = opt.value;
+      o.textContent = opt.label;
+      sel.appendChild(o);
+    });
+
+    const currentType = (item.transitionType || "NONE").toUpperCase();
+    sel.value = currentType === "FADE" ? "FADE" : "NONE";
+
+    tdTransition.appendChild(sel);
+    row.appendChild(tdTransition);
+
+    // Transitie-duur (input in seconden)
+    const tdTransitionDuration = document.createElement("td");
+    const inp = document.createElement("input");
+    inp.type = "number";
+    inp.min = "0";
+    inp.max = "10";
+    inp.step = "0.1";
+    const ms = typeof item.transitionDurationMs === "number"
+      ? item.transitionDurationMs
+      : 1000; // default 1s
+    inp.value = (ms / 1000).toFixed(1);
+    tdTransitionDuration.appendChild(inp);
+    row.appendChild(tdTransitionDuration);
+
+    // Acties
+    const tdActions = document.createElement("td");
+
+    // Opslaan transitie
+    const saveBtn = document.createElement("button");
+    saveBtn.textContent = "Opslaan";
+    saveBtn.addEventListener("click", async () => {
+      const newType = sel.value;
+      const sec = parseFloat(inp.value || "0") || 0;
+      const newMs = Math.round(sec * 1000);
+
+      const resp = await fetch(`/api/admin/playlist-items/${item.id}/transition`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transitionType: newType,
+          transitionDurationMs: newMs
+        })
+      });
+
+      if (!resp.ok) {
+        alert("Fout bij opslaan transitie.");
+        return;
+      }
+
+      // Herlaad zodat de UI weer synchroon is met de backend
+      await loadItems();
+    });
+    tdActions.appendChild(saveBtn);
+
+    // Move up
+    const upBtn = document.createElement("button");
+    upBtn.textContent = "▲";
+    upBtn.addEventListener("click", () => moveUp(index));
+    tdActions.appendChild(upBtn);
+
+    // Move down
+    const downBtn = document.createElement("button");
+    downBtn.textContent = "▼";
+    downBtn.addEventListener("click", () => moveDown(index));
+    tdActions.appendChild(downBtn);
+
+    // Delete
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "Verwijderen";
+    delBtn.classList.add("danger");
+    delBtn.addEventListener("click", () => deleteItem(item.id));
+    tdActions.appendChild(delBtn);
+
+    row.appendChild(tdActions);
+
     tbody.appendChild(row);
   });
 }
@@ -331,7 +434,9 @@ function swap(i, j) {
 }
 
 async function applyReorder() {
-  currentItems.forEach((item, i) => item.sortOrder = i + 1);
+  currentItems.forEach((item, i) => {
+    item.sortOrder = i + 1;
+  });
 
   await fetch(`/api/admin/playlists/${playlistId}/reorder`, {
     method: "PUT",
