@@ -232,6 +232,22 @@
       const ENV =
         window.location.hostname === "localhost" ? "development" : "production";
 
+      // Optionele forced reset via URL: ?reset=1
+      const urlParams = new URLSearchParams(window.location.search);
+      const forceReset = urlParams.has("reset");
+
+      // Als reset expliciet gevraagd is: lokale koppeling wissen
+      if (forceReset) {
+        try {
+          localStorage.removeItem("sl_deviceId");
+          localStorage.removeItem("sl_deviceToken");
+          localStorage.removeItem("sl_playerId");
+          console.log("Player reset aangevraagd via ?reset=1; localStorage gewist.");
+        } catch (e) {
+          console.error("Kon localStorage niet wissen:", e);
+        }
+      }
+
       // ---------- Helpers UI ----------
       function showLoadingOverlay() {
         loadingOverlay.classList.remove("hidden");
