@@ -562,6 +562,10 @@ app.get("/api/device/playlist", deviceAuth, async (req: DeviceRequest, res) => {
       type: item.media.mediaType,
       url: item.media.url,
       durationSec: item.durationSec ?? null,
+
+      // 🔽 NIEUW: overgang naar volgende slide
+      transitionType: item.transitionType ?? "FADE",
+      transitionDurationMs: item.transitionDurationMs ?? 1000,
     }));
 
     return res.json({
