@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Playlist" ADD COLUMN     "fitMode" "FitMode" NOT NULL DEFAULT 'CONTAIN',
+ALTER COLUMN "designHeight" DROP NOT NULL,
+ALTER COLUMN "designHeight" DROP DEFAULT,
+ALTER COLUMN "designWidth" DROP NOT NULL,
+ALTER COLUMN "designWidth" DROP DEFAULT;
