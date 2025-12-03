@@ -25,6 +25,11 @@ enum FitMode {
   ORIGINAL
 }
 
+enum TransitionType {
+  NONE
+  FADE
+}
+
 model Tenant {
   id          Int          @id @default(autoincrement())
   name        String
@@ -104,13 +109,20 @@ model MediaAsset {
 }
 
 model PlaylistItem {
-  id          Int        @id @default(autoincrement())
-  playlist    Playlist   @relation(fields: [playlistId], references: [id])
-  playlistId  Int
-  media       MediaAsset @relation(fields: [mediaId], references: [id])
-  mediaId     Int
+  id         Int      @id @default(autoincrement())
+  playlist   Playlist @relation(fields: [playlistId], references: [id])
+  playlistId Int
+
+  media   MediaAsset @relation(fields: [mediaId], references: [id])
+  mediaId Int
+
+  durationSec Int? @default(10)
   sortOrder   Int
-  durationSec Int?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+
+  // 🔽 NIEUW: overgang naar volgende item
+  transitionType       TransitionType @default(FADE)
+  transitionDurationMs Int            @default(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

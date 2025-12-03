@@ -104,41 +104,75 @@
       #mediaContainer {
         position: absolute;
         inset: 0;
+        background: #000;
+        overflow: hidden;
+      }
+
+      .slideLayer {
+        position: absolute;
+        inset: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #000;
+        opacity: 0;
+        transition: opacity var(--transition-duration, 1s) ease-in-out;
       }
 
-      #imageSlide,
-      #videoSlide {
+      .slideLayer img,
+      .slideLayer video {
         max-width: 100%;
         max-height: 100%;
-      }
-
-      #videoSlide {
+        object-fit: contain; /* wordt door JS aangepast */
+        display: block;
         background: #000;
       }
 
-      /* ---------- Debug overlay (klassieke layout) ---------- */
+      .slideLayer.active {
+        opacity: 1;
+      }
+
+      /* ---------- Debug overlay ---------- */
       #debugOverlay {
-        position: absolute;
+        position: fixed;
         left: 8px;
         bottom: 8px;
-        background: rgba(0, 0, 0, 0.5);
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        color: #ccc;
-        line-height: 1.3;
-        text-align: left;
+        top: auto;
         z-index: 9998;
+        padding: 6px 8px;
+        background: rgba(0, 0, 0, 0.55);
+        color: #0f0;
+        font-family: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco,
+          Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 10px;
+        max-width: 420px;
+        border-radius: 4px;
+        white-space: pre-wrap;
+        border: 1px solid rgba(0, 0, 0, 0.8);
       }
 
       #debugOverlay.hidden {
         display: none;
       }
 
+      #debugOverlay strong {
+        color: #ffffff;
+      }
+
+      #debugOverlay .tag {
+        display: inline-block;
+        padding: 1px 4px;
+        border-radius: 3px;
+        background: rgba(0, 0, 0, 0.7);
+        margin-right: 4px;
+      }
+
+      #debugOverlay .env-dev {
+        color: #0ff;
+      }
+
+      #debugOverlay .env-prod {
+        color: #ff0;
+      }
     </style>
   </head>
   <body>
@@ -147,7 +181,9 @@
       <div id="loadingOverlay">
         <div class="loading-inner">
           <div class="spinner"></div>
-          <div class="loading-text">Presentatie wordt voorbereid…</div>
+          <div class="loading-text">
+            Player is content aan het downloaden…
+          </div>
         </div>
       </div>
 
@@ -164,29 +200,36 @@
       <!-- Playback scherm -->
       <div id="playbackScreen">
         <div id="mediaContainer">
-          <img id="imageSlide" style="display: none" />
-          <video
-            id="videoSlide"
-            style="display: none"
-            playsinline
-            muted
-            loop
-          ></video>
+          <!-- Layer A -->
+          <div class="slideLayer active" id="layerA">
+            <img id="imageA" style="display: none" />
+            <video
+              id="videoA"
+              style="display: none"
+              playsinline
+              muted
+              loop
+            ></video>
+          </div>
+          <!-- Layer B -->
+          <div class="slideLayer" id="layerB">
+            <img id="imageB" style="display: none" />
+            <video
+              id="videoB"
+              style="display: none"
+              playsinline
+              muted
+              loop
+            ></video>
+          </div>
         </div>
       </div>
 
-      <!-- Debug overlay (klassieke layout) -->
+      <!-- Debug overlay -->
       <div id="debugOverlay">
-        <div id="debugPlaylist">Playlist v0 — items: 0</div>
-        <div id="debugCanvas">
-          Canvas: —×— — screen: —×— — fit: CONTAIN
-        </div>
-        <div id="debugPlayer">Player: —</div>
-        <div id="debugPlaylistName">Playlist naam: —</div>
-        <div id="debugSlide">Slide: —</div>
-        <div id="debugNote"></div>
+        <div><span class="tag">Signage Lite Player</span></div>
+        <div id="debugText"></div>
       </div>
-
     </div>
 
     <script>
@@ -194,19 +237,26 @@
       const pairingScreen = document.getElementById("pairingScreen");
       const playbackScreen = document.getElementById("playbackScreen");
       const loadingOverlay = document.getElementById("loadingOverlay");
+      const loadingTextEl = document.querySelector(".loading-text");
       const pairingCodeEl = document.getElementById("pairingCode");
       const pairingStatusEl = document.getElementById("pairingStatus");
 
-      const imageEl = document.getElementById("imageSlide");
-      const videoEl = document.getElementById("videoSlide");
       const debugOverlay = document.getElementById("debugOverlay");
-      const debugPlaylistEl = document.getElementById("debugPlaylist");
-      const debugCanvasEl = document.getElementById("debugCanvas");
-      const debugPlayerEl = document.getElementById("debugPlayer");
-      const debugPlaylistNameEl = document.getElementById("debugPlaylistName");
-      const debugSlideEl = document.getElementById("debugSlide");
-      const debugNoteEl = document.getElementById("debugNote");
+      const debugTextEl = document.getElementById("debugText");
 
+      const layerA = {
+        root: document.getElementById("layerA"),
+        image: document.getElementById("imageA"),
+        video: document.getElementById("videoA"),
+      };
+      const layerB = {
+        root: document.getElementById("layerB"),
+        image: document.getElementById("imageB"),
+        video: document.getElementById("videoB"),
+      };
+
+      let activeLayer = layerA;
+      let inactiveLayer = layerB;
 
       let deviceId = null;
       let deviceToken = null;
@@ -224,17 +274,17 @@
       const ENV =
         window.location.hostname === "localhost" ? "development" : "production";
 
-      // Optionele forced reset via URL: ?reset=1
+      // URL param: ?reset=1 => koppeling wissen
       const urlParams = new URLSearchParams(window.location.search);
       const forceReset = urlParams.has("reset");
-
-      // Als reset expliciet gevraagd is: lokale koppeling wissen
       if (forceReset) {
         try {
           localStorage.removeItem("sl_deviceId");
           localStorage.removeItem("sl_deviceToken");
           localStorage.removeItem("sl_playerId");
-          console.log("Player reset aangevraagd via ?reset=1; localStorage gewist.");
+          console.log(
+            "Player reset aangevraagd via ?reset=1; localStorage gewist."
+          );
         } catch (e) {
           console.error("Kon localStorage niet wissen:", e);
         }
@@ -252,7 +302,7 @@
       function showPairingScreen() {
         pairingScreen.style.display = "flex";
         playbackScreen.style.display = "none";
-        showLoadingOverlay(); // tot er een pairing code is
+        // tijdens eerste register houden we overlay aan tot pairing code binnen is
       }
 
       function showPlaybackScreen() {
@@ -267,73 +317,63 @@
         }
       }
 
-      // ---------- Debug (klassieke velden) ----------
+      // ---------- Debug ----------
       function updateDebugOverlay(extra = {}) {
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
 
-        const hasPlaylist =
-          currentPlaylist && Array.isArray(currentPlaylist.items);
+        const lines = [];
 
-        const itemCount = hasPlaylist ? currentPlaylist.items.length : 0;
-        const version = lastPlaylistVersion ?? 0;
+        lines.push(
+          `<strong>Env:</strong> ${
+            ENV === "development"
+              ? '<span class="env-dev">development</span>'
+              : '<span class="env-prod">production</span>'
+          }`
+        );
+        lines.push(`DeviceId: ${deviceId ?? "?"}`);
+        lines.push(`PlayerId: ${playerId ?? "?"}`);
+        lines.push(`deviceToken: ${deviceToken ? "✔︎" : "—"}`);
 
-        // Regel 1: playlist + aantal items
-        debugPlaylistEl.textContent = `Playlist v${version} — items: ${itemCount}`;
+        lines.push(
+          `Screen: ${screenW}×${screenH}  | Playlist v${lastPlaylistVersion ?? 0}`
+        );
 
-        // Regel 2: canvas + scherm + fit
-        const designW =
-          hasPlaylist && currentPlaylist.designWidth
-            ? currentPlaylist.designWidth
-            : "onbekend";
-        const designH =
-          hasPlaylist && currentPlaylist.designHeight
-            ? currentPlaylist.designHeight
-            : "onbekend";
-        const fit = hasPlaylist && currentPlaylist.fitMode
-          ? currentPlaylist.fitMode
-          : "CONTAIN";
-
-        debugCanvasEl.textContent = `Canvas: ${designW}×${designH} — screen: ${screenW}×${screenH} — fit: ${fit}`;
-
-        // Regel 3: playernaam + locatie (komt uit backend response)
-        const playerName =
-          hasPlaylist && currentPlaylist.playerName
-            ? currentPlaylist.playerName
-            : "onbekend";
-        const location =
-          hasPlaylist && currentPlaylist.location
-            ? ` (${currentPlaylist.location})`
-            : "";
-
-        debugPlayerEl.textContent = `Player: ${playerName}${location}`;
-
-        // Regel 4: playlist naam
-        const playlistName =
-          hasPlaylist && currentPlaylist.playlistName
-            ? currentPlaylist.playlistName
-            : "onbekend";
-
-        debugPlaylistNameEl.textContent = `Playlist naam: ${playlistName}`;
-
-        // Regel 5: slide-info
-        if (hasPlaylist && itemCount > 0) {
-          const idx = currentIndex % itemCount;
-          const item = currentPlaylist.items[idx];
-          const dur = item.durationSec ?? 10;
-          debugSlideEl.textContent = `Slide: ${idx + 1}/${itemCount} — ${
-            item.type
-          } — ${dur}s — fit: ${fit}`;
+        if (currentPlaylist && currentPlaylist.items) {
+          const itemCount = currentPlaylist.items.length;
+          lines.push(`Items: ${itemCount}`);
+          if (itemCount > 0) {
+            const idx = currentIndex % itemCount;
+            const item = currentPlaylist.items[idx];
+            const trType = item.transitionType || "NONE";
+            const trMs =
+              typeof item.transitionDurationMs === "number"
+                ? item.transitionDurationMs
+                : 1000;
+            lines.push(
+              `Active: #${idx + 1}/${itemCount}  type=${item.type}  dur=${
+                item.durationSec ?? 10
+              }s`
+            );
+            lines.push(
+              `Transition: ${trType} (${(trMs / 1000).toFixed(1)}s) → next`
+            );
+          }
+          lines.push(
+            `FitMode: ${currentPlaylist.fitMode ?? "CONTAIN"} | Design: ${
+              currentPlaylist.designWidth ?? "-"
+            }×${currentPlaylist.designHeight ?? "-"}`
+          );
         } else {
-          debugSlideEl.textContent = "Slide: geen items in playlist";
+          lines.push("Nog geen actieve playlist");
         }
 
-        // Optionele note (voor foutmeldingen e.d.)
         if (extra.message) {
-          debugNoteEl.textContent = extra.message;
-        } else {
-          debugNoteEl.textContent = "";
+          lines.push("");
+          lines.push(`Note: ${extra.message}`);
         }
+
+        debugTextEl.innerHTML = lines.join("\n");
       }
 
       // Toggle debug overlay met 'd'
@@ -392,21 +432,40 @@
           return Promise.resolve();
         }
 
+        const total = playlist.items.length;
+        let completed = 0;
+
+        if (loadingTextEl) {
+          loadingTextEl.textContent = `Player is content aan het downloaden… (0/${total})`;
+        }
+
         const tasks = playlist.items.map((item) => {
+          let p;
           if (item.type === "IMAGE") {
-            return preloadImage(item.url);
+            p = preloadImage(item.url);
+          } else if (item.type === "VIDEO") {
+            p = preloadVideo(item.url);
+          } else {
+            p = Promise.resolve();
           }
-          if (item.type === "VIDEO") {
-            return preloadVideo(item.url);
-          }
-          return Promise.resolve();
+
+          return p.finally(() => {
+            completed += 1;
+            if (loadingTextEl) {
+              loadingTextEl.textContent = `Player is content aan het downloaden… (${completed}/${total})`;
+            }
+          });
         });
 
-        return Promise.allSettled(tasks);
+        return Promise.allSettled(tasks).then(() => {
+          if (loadingTextEl) {
+            loadingTextEl.textContent = "Presentatie wordt gestart…";
+          }
+        });
       }
 
       // ---------- Fit mode op media toepassen ----------
-      function applyFitMode(fitMode) {
+      function applyFitModeToLayer(layer, fitMode) {
         const mode = (fitMode || "CONTAIN").toUpperCase();
 
         let objectFit = "contain";
@@ -414,11 +473,17 @@
         else if (mode === "STRETCH") objectFit = "fill";
         else if (mode === "ORIGINAL") objectFit = "none";
 
-        imageEl.style.objectFit = objectFit;
-        videoEl.style.objectFit = objectFit;
+        layer.image.style.objectFit = objectFit;
+        layer.video.style.objectFit = objectFit;
       }
 
       // ---------- Playback ----------
+      function swapLayers() {
+        const oldActive = activeLayer;
+        activeLayer = inactiveLayer;
+        inactiveLayer = oldActive;
+      }
+
       async function showSlide(index) {
         if (
           !currentPlaylist ||
@@ -435,7 +500,30 @@
         const nextIndex =
           (currentIndex + 1) % currentPlaylist.items.length;
 
-        applyFitMode(currentPlaylist.fitMode);
+        const transitionType = (item.transitionType || "NONE").toUpperCase();
+        const rawMs =
+          typeof item.transitionDurationMs === "number"
+            ? item.transitionDurationMs
+            : 1000;
+        const fadeMs = transitionType === "FADE" ? rawMs : 0;
+
+        // CSS transition duur zetten op beide layers
+        const durationSec = Math.max(fadeMs, 0) / 1000;
+        activeLayer.root.style.setProperty(
+          "--transition-duration",
+          `${durationSec}s`
+        );
+        inactiveLayer.root.style.setProperty(
+          "--transition-duration",
+          `${durationSec}s`
+        );
+
+        // FitMode toepassen voor deze playlist
+        applyFitModeToLayer(activeLayer, currentPlaylist.fitMode);
+        applyFitModeToLayer(inactiveLayer, currentPlaylist.fitMode);
+
+        // Eerst de slide preloadden in de INACTIEVE layer
+        const targetLayer = inactiveLayer;
 
         if (item.type === "IMAGE") {
           try {
@@ -444,19 +532,27 @@
             console.error("Preload error (image):", e);
           }
 
-          videoEl.pause();
-          videoEl.style.display = "none";
+          // Video in targetlaag uitzetten
+          targetLayer.video.pause();
+          targetLayer.video.style.display = "none";
 
-          imageEl.style.display = "block";
-          imageEl.src = item.url;
+          // Afbeelding tonen
+          targetLayer.image.style.display = "block";
+          targetLayer.image.src = item.url;
         } else if (item.type === "VIDEO") {
-          imageEl.style.display = "none";
+          try {
+            await preloadVideo(item.url);
+          } catch (e) {
+            console.error("Preload error (video):", e);
+          }
 
-          videoEl.style.display = "block";
-          videoEl.preload = "auto";
-          videoEl.src = item.url;
-          videoEl.currentTime = 0;
-          videoEl
+          targetLayer.image.style.display = "none";
+
+          targetLayer.video.style.display = "block";
+          targetLayer.video.preload = "auto";
+          targetLayer.video.src = item.url;
+          targetLayer.video.currentTime = 0;
+          targetLayer.video
             .play()
             .catch((err) =>
               console.error("Video autoplay mislukte:", err)
@@ -465,9 +561,22 @@
           console.warn("Onbekend item type:", item.type);
         }
 
-        const durationMs = (item.durationSec ?? 10) * 1000;
+        // Crossfade: active → inactive
+        if (fadeMs > 0) {
+          activeLayer.root.classList.remove("active");
+          targetLayer.root.classList.add("active");
+        } else {
+          // Geen fade: direct omschakelen
+          activeLayer.root.classList.remove("active");
+          targetLayer.root.classList.add("active");
+        }
 
-        // Preload volgende slide
+        // Layers wisselen voor de volgende call
+        swapLayers();
+
+        const slideDurationMs = (item.durationSec ?? 10) * 1000;
+
+        // Preload volgende slide alvast
         const nextItem = currentPlaylist.items[nextIndex];
         if (nextItem && nextItem.type === "IMAGE") {
           preloadImage(nextItem.url).catch(() => {});
@@ -480,7 +589,7 @@
         clearPlaybackTimer();
         playbackTimer = setTimeout(() => {
           showSlide(nextIndex);
-        }, durationMs);
+        }, slideDurationMs);
       }
 
       function startPlaybackWithPlaylist(playlist) {
@@ -532,6 +641,10 @@
 
           clearPlaybackTimer();
           showLoadingOverlay();
+          if (loadingTextEl) {
+            loadingTextEl.textContent =
+              "Player is content aan het downloaden…";
+          }
           updateDebugOverlay({ message: "Nieuwe playlist wordt geladen…" });
 
           await preloadPlaylistMedia(data);
@@ -547,9 +660,7 @@
       }
 
       function startPlaylistPolling() {
-        // direct eerste keer proberen
         fetchAndMaybeUpdatePlaylist();
-        // daarna elke 15s
         playlistPollTimer = setInterval(fetchAndMaybeUpdatePlaylist, 15000);
       }
 
@@ -657,6 +768,10 @@
               localStorage.setItem("sl_playerId", String(playerId ?? ""));
 
               showLoadingOverlay();
+              if (loadingTextEl) {
+                loadingTextEl.textContent =
+                  "Player is content aan het downloaden…";
+              }
               updateDebugOverlay({
                 message: "Gekoppeld; playlist wordt opgehaald…",
               });
@@ -674,7 +789,6 @@
           }
         }
 
-        // meteen checken + interval
         await checkOnce();
         setInterval(checkOnce, 3000);
       }
