@@ -120,21 +120,23 @@
         background: #000;
       }
 
-      /* ---------- Debug overlay ---------- */
+            /* ---------- Debug overlay ---------- */
       #debugOverlay {
         position: fixed;
         left: 8px;
-        top: 8px;
+        bottom: 8px;      /* ⬅️ in plaats van top: 8px; */
+        top: auto;        /* ⬅️ zorg dat top niet meer geldt */
         z-index: 9998;
-        padding: 8px 10px;
-        background: rgba(0, 0, 0, 0.7);
+        padding: 6px 8px;
+        background: rgba(0, 0, 0, 0.55);
         color: #0f0;
         font-family: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco,
           Consolas, "Liberation Mono", "Courier New", monospace;
-        font-size: 11px;
-        max-width: 480px;
+        font-size: 10px;
+        max-width: 420px;
         border-radius: 4px;
         white-space: pre-wrap;
+        border: 1px solid rgba(0, 0, 0, 0.8);
       }
 
       #debugOverlay.hidden {
@@ -142,14 +144,14 @@
       }
 
       #debugOverlay strong {
-        color: #fff;
+        color: #ffffff;
       }
 
       #debugOverlay .tag {
         display: inline-block;
         padding: 1px 4px;
         border-radius: 3px;
-        background: #222;
+        background: rgba(0, 0, 0, 0.7);
         margin-right: 4px;
       }
 
@@ -160,6 +162,7 @@
       #debugOverlay .env-prod {
         color: #ff0;
       }
+
     </style>
   </head>
   <body>
