@@ -635,6 +635,71 @@ app.post("/api/admin/players/:playerId/playlists", async (req, res) => {
   }
 });
 
+app.post("/api/admin/playlist-items/:id/transition", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id) || !id) {
+      return res.status(400).json({ error: "Ongeldige playlist-item-id" });
+    }
+
+    const { transitionType, transitionDurationMs } = req.body as {
+      transitionType?: string;
+      transitionDurationMs?: number;
+    };
+
+    // Alleen bekende types toestaan; fallback naar "NONE"
+    const allowedTypes = ["NONE", "FADE"] as const;
+    let safeType: (typeof allowedTypes)[number] = "NONE";
+
+    if (typeof transitionType === "string") {
+      const upper = transitionType.toUpperCase();
+      if (allowedTypes.includes(upper as (typeof allowedTypes)[number])) {
+        safeType = upper as (typeof allowedTypes)[number];
+      }
+    }
+
+    // Duur in ms, 0–10000, alleen relevant bij FADE
+    let safeDurationMs = 0;
+    if (safeType === "FADE") {
+      const rawMs =
+        typeof transitionDurationMs === "number" && Number.isFinite(transitionDurationMs)
+          ? transitionDurationMs
+          : 1000; // default 1s
+
+      safeDurationMs = Math.min(Math.max(rawMs, 0), 10000);
+    }
+
+    // Bestaand item ophalen om playlistId te weten
+    const existing = await prisma.playlistItem.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: "Playlist-item niet gevonden" });
+    }
+
+    // Item updaten
+    const updated = await prisma.playlistItem.update({
+      where: { id },
+      data: {
+        transitionType: safeType,
+        transitionDurationMs: safeDurationMs,
+      },
+    });
+
+    // Playlist-versie ophogen zodat de player de wijziging ziet
+    await prisma.playlist.update({
+      where: { id: existing.playlistId },
+      data: { version: { increment: 1 } },
+    });
+
+    return res.json(updated);
+  } catch (e) {
+    console.error(
+      "Fout in /api/admin/playlist-items/:id/transition:",
+      e
+    );
+    return res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
 app.delete("/api/admin/playlists/:id", async (req, res) => {
   try {
     const playlistId = Number(req.params.id);
