@@ -299,6 +299,64 @@ app.post("/api/admin/tenants/:tenantId/players", async (req, res) => {
   }
 });
 
+/**
+ * Admin: bestaande player koppelen aan een device via pairing code.
+ * UI: POST /api/admin/players/:playerId/pair-with-code
+ */
+app.post("/api/admin/players/:playerId/pair-with-code", async (req, res) => {
+  try {
+    const playerId = Number(req.params.playerId);
+    const { pairingCode } = req.body as { pairingCode?: string };
+
+    if (!playerId || Number.isNaN(playerId)) {
+      return res.status(400).json({ error: "Ongeldige player-id" });
+    }
+
+    if (!pairingCode || typeof pairingCode !== "string") {
+      return res
+        .status(400)
+        .json({ error: "pairingCode is verplicht en moet een string zijn" });
+    }
+
+    const now = new Date();
+
+    const device = await prisma.device.findFirst({
+      where: {
+        pairingCode,
+        pairingExpires: { gt: now },
+      },
+    });
+
+    if (!device) {
+      return res
+        .status(404)
+        .json({ error: "Geen actief device gevonden voor deze pairing code" });
+    }
+
+    const deviceToken = generateDeviceToken();
+
+    const updated = await prisma.device.update({
+      where: { id: device.id },
+      data: {
+        playerId,
+        deviceToken,
+        pairingCode: null,
+        pairingExpires: null,
+      },
+    });
+
+    return res.json({
+      ok: true,
+      deviceId: updated.id,
+      playerId,
+      deviceToken,
+    });
+  } catch (e) {
+    console.error("Fout in /api/admin/players/:playerId/pair-with-code:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
 app.delete("/api/admin/players/:id", async (req, res) => {
   try {
     const playerId = Number(req.params.id);
@@ -731,5 +789,5 @@ app.put("/api/admin/playlists/:playlistId/reorder", async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 app.listen(port, () => {
-  console.log(`Server luistert op http://localhost:${port}`);
+  console.log(`Server luistert op poort ${port} (Render of lokaal)`);
 });
