@@ -1,13 +1,17 @@
 import express from "express";
 import crypto from "crypto";
+import multer from "multer";
 import prisma from "./prisma";
 import { deviceAuth, DeviceRequest } from "./deviceAuth";
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+const upload = multer({ dest: "uploads" });
+
 app.use(express.json());
 app.use(express.static("public"));
+app.use("/uploads", express.static("uploads"));
 
 // Root (optioneel)
 app.get("/", (_req, res) => {
@@ -834,6 +838,51 @@ app.post("/api/admin/playlists/:playlistId/items", async (req, res) => {
     res.status(500).json({ error: "Interne serverfout" });
   }
 });
+
+app.post("/api/admin/media/upload", upload.single("file"), async (req, res) => {
+  try {
+    const { tenantId } = req.body;
+    const file = req.file;
+
+    if (!tenantId || !file) {
+      return res.status(400).json({ error: "tenantId en file zijn verplicht" });
+    }
+
+    const tenantIdNum = Number(tenantId);
+    if (!Number.isFinite(tenantIdNum)) {
+      return res.status(400).json({ error: "Ongeldige tenantId" });
+    }
+
+    const mimeType = file.mimetype || "application/octet-stream";
+    let mediaType: "IMAGE" | "VIDEO" = "IMAGE";
+
+    if (mimeType.startsWith("video/")) {
+      mediaType = "VIDEO";
+    } else if (!mimeType.startsWith("image/")) {
+      // eventueel extra logica op extensie
+    }
+
+    // URL waarop het bestand publiek bereikbaar is
+    const publicUrl = `/uploads/${file.filename}`;
+
+    const asset = await prisma.mediaAsset.create({
+      data: {
+        tenantId: tenantIdNum,
+        filename: file.originalname,
+        url: publicUrl,
+        mimeType,
+        mediaType,
+        sizeBytes: file.size,
+      },
+    });
+
+    res.status(201).json(asset);
+  } catch (err) {
+    console.error("Fout bij media upload:", err);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
 
 app.delete("/api/admin/playlist-items/:id", async (req, res) => {
   try {

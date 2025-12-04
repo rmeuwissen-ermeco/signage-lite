@@ -169,6 +169,15 @@
       max-width: 340px;
       word-break: break-all;
     }
+
+    footer {
+      margin-top: auto;
+      padding: 10px 20px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-subtle);
+      background: #111;
+    }
   </style>
 </head>
 <body>
@@ -190,10 +199,10 @@
 <main>
   <h1>Media</h1>
   <p class="lead">
-    Media is gekoppeld aan een tenant en wordt gebruikt in playlists. Voor nu werken we met URL’s; upload komt later.
+    Media is gekoppeld aan een tenant en wordt gebruikt in playlists. Je kunt media toevoegen via een externe URL of door een bestand te uploaden.
   </p>
 
-  <h2>1. Tenant & nieuwe media</h2>
+  <h2>1. Tenant & nieuwe media via URL</h2>
 
   <label>Tenant:</label>
   <select id="tenantSelect"></select>
@@ -225,6 +234,21 @@
     </div>
   </div>
 
+  <h2>1b. Media uploaden</h2>
+  <p class="lead">
+    Upload een bestand; het wordt automatisch gekoppeld aan de geselecteerde tenant. De player haalt dit bestand via de /uploads/ URL op.
+  </p>
+
+  <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-bottom:16px;">
+    <div>
+      <label for="uploadFile">Bestand uploaden</label><br>
+      <input type="file" id="uploadFile" />
+    </div>
+    <div>
+      <button onclick="uploadMedia()">Uploaden</button>
+    </div>
+  </div>
+
   <h2>2. Bestaande media</h2>
 
   <table id="mediaTable">
@@ -243,7 +267,7 @@
 </main>
 
 <footer>
-  Signage Lite v0.x – media
+  Signage Lite v0.3 – media
 </footer>
 
 <script>
@@ -265,7 +289,10 @@ async function loadTenants() {
 }
 
 async function loadMedia() {
-  const tenantId = document.getElementById("tenantSelect").value;
+  const tenantSelect = document.getElementById("tenantSelect");
+  if (!tenantSelect) return;
+
+  const tenantId = tenantSelect.value;
   if (!tenantId) return;
 
   const res = await fetch(`/api/admin/tenants/${tenantId}/media`);
@@ -282,7 +309,11 @@ async function loadMedia() {
       <td>${m.filename}</td>
       <td>${m.mediaType}</td>
       <td>${m.mimeType}</td>
-      <td class="url-cell"><a href="${m.url}" target="_blank" style="color: var(--accent); text-decoration:none;">${m.url}</a></td>
+      <td class="url-cell">
+        <a href="${m.url}" target="_blank" style="color: var(--accent); text-decoration:none;">
+          ${m.url}
+        </a>
+      </td>
       <td>
         <button class="danger" onclick="deleteMedia(${m.id})">Verwijderen</button>
       </td>
@@ -292,6 +323,47 @@ async function loadMedia() {
   });
 }
 
+async function uploadMedia() {
+  const tenantSelect = document.getElementById("tenantSelect");
+  const fileInput = document.getElementById("uploadFile");
+
+  if (!tenantSelect || !fileInput) {
+    alert("Interne fout: velden niet gevonden.");
+    return;
+  }
+
+  const tenantId = tenantSelect.value;
+  const file = fileInput.files[0];
+
+  if (!tenantId) {
+    alert("Selecteer eerst een tenant.");
+    return;
+  }
+  if (!file) {
+    alert("Kies eerst een bestand.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("tenantId", tenantId);
+  formData.append("file", file);
+
+  const resp = await fetch("/api/admin/media/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    console.error("Fout bij upload:", resp.status, text);
+    alert("Fout bij uploaden van media. Zie console voor details.");
+    return;
+  }
+
+  await loadMedia();
+  fileInput.value = "";
+}
+
 async function createMedia() {
   const tenantId = document.getElementById("tenantSelect").value;
   const filename = document.getElementById("filename").value.trim();
@@ -299,17 +371,27 @@ async function createMedia() {
   const mimeType = document.getElementById("mimeType").value.trim();
   const mediaType = document.getElementById("mediaType").value;
 
-  if (!tenantId) return alert("Selecteer een tenant.");
+  if (!tenantId) {
+    alert("Selecteer een tenant.");
+    return;
+  }
   if (!filename || !url || !mimeType || !mediaType) {
     alert("Alle velden zijn verplicht.");
     return;
   }
 
-  await fetch(`/api/admin/tenants/${tenantId}/media`, {
+  const resp = await fetch(`/api/admin/tenants/${tenantId}/media`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ filename, url, mimeType, mediaType }),
   });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    console.error("Fout bij aanmaken media:", resp.status, text);
+    alert("Fout bij aanmaken media. Zie console voor details.");
+    return;
+  }
 
   document.getElementById("filename").value = "";
   document.getElementById("url").value = "";
@@ -320,13 +402,21 @@ async function createMedia() {
 async function deleteMedia(id) {
   if (!confirm("Media verwijderen? Dit verwijdert ook koppelingen in playlists.")) return;
 
-  await fetch(`/api/admin/media/${id}`, {
+  const resp = await fetch(`/api/admin/media/${id}`, {
     method: "DELETE",
   });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    console.error("Fout bij verwijderen media:", resp.status, text);
+    alert("Fout bij verwijderen van media. Zie console voor details.");
+    return;
+  }
 
   loadMedia();
 }
 
+// Start
 loadTenants();
 </script>
 
