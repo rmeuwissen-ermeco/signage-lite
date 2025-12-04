@@ -524,10 +524,16 @@
           !currentPlaylist ||
           !Array.isArray(currentPlaylist.items) ||
           currentPlaylist.items.length === 0
-        ) {
+       ) {
           console.warn("Geen items in playlist");
+          showEmptyPlaylistMessage(
+           currentPlaylist && currentPlaylist.playlistName
+             ? `Playlist "${currentPlaylist.playlistName}" bevat nog geen items. Voeg content toe in het admin panel.`
+             : "Er is nog geen actieve playlist of er zijn nog geen items toegevoegd."
+         );
+         hideLoadingOverlay();
           updateDebugOverlay({ message: "Geen items in playlist" });
-          return;
+         return;
         }
 
         currentIndex = index % currentPlaylist.items.length;
@@ -637,7 +643,7 @@
 
 
       // ---------- Playlist polling ----------
-            async function fetchAndMaybeUpdatePlaylist() {
+       async function fetchAndMaybeUpdatePlaylist() {
         if (!deviceToken) {
           console.warn("Geen deviceToken beschikbaar, kan playlist niet ophalen.");
           return;
@@ -669,34 +675,33 @@
           }
 
           const isFirstLoad = lastPlaylistVersion === null;
-          if (!isFirstLoad && data.version === lastPlaylistVersion) {
-            // Niets veranderd
+          const incomingVersion =
+            typeof data.version === "number" ? data.version : 0;
+
+          if (!isFirstLoad && incomingVersion === lastPlaylistVersion) {
+            // Niets veranderd, laat huidige playlist gewoon doorlopen
             return;
           }
 
-          lastPlaylistVersion =
-            typeof data.version === "number" ? data.version : 0;
+          lastPlaylistVersion = incomingVersion;
 
-          clearPlaybackTimer();
-          showLoadingOverlay();
-
-          if (loadingTextEl) {
-            if (data.items.length === 0) {
-              loadingTextEl.textContent =
-                "Geen content gevonden voor deze player. Voeg media toe in het admin panel.";
-            } else {
-              loadingTextEl.textContent =
-                "Player is content aan het downloaden…";
-            }
-          }
-
+          // Lege (maar geldige) playlist: geen preload, direct melding tonen
           if (data.items.length === 0) {
-            // Lege maar geldige playlist: geen preload, direct melding tonen
+            hideLoadingOverlay();
             startPlaybackWithPlaylist(data);
             return;
           }
 
-          updateDebugOverlay({ message: "Nieuwe playlist wordt geladen…" });
+          clearPlaybackTimer();
+          showLoadingOverlay();
+
+          showLoadingOverlay();
+          if (loadingTextEl) {
+            loadingTextEl.textContent = "Playlist wordt opgehaald…";
+          }
+          updateDebugOverlay({
+            message: "Gekoppeld; playlist wordt opgehaald…",
+          });
 
           await preloadPlaylistMedia(data);
 
@@ -708,6 +713,7 @@
           });
         }
       }
+
 
       function startPlaylistPolling() {
         fetchAndMaybeUpdatePlaylist();

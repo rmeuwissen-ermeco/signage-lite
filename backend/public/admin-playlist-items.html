@@ -228,7 +228,7 @@
     <input type="number" id="durationInput" value="10" min="1">
   </div>
 
-  <button onclick="addItem()">Toevoegen</button>
+  <button id="addItemButton" onclick="addItem()">Toevoegen</button>
 
   <h2>Bestaande items</h2>
 
@@ -259,22 +259,32 @@ let currentItems = [];
 
 async function loadMedia() {
   const res = await fetch(`/api/admin/tenants/${tenantId}/media`);
-  if (!res.ok) {
-    console.error("Fout bij laden media:", res.status, await res.text());
-    alert("Kon media niet laden. Zie console voor details.");
+  const media = await res.json();
+
+  const select = document.getElementById("mediaSelect");
+  const addBtn = document.getElementById("addItemButton");
+  select.innerHTML = "";
+
+  if (!Array.isArray(media) || media.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "Geen media beschikbaar voor deze tenant";
+    opt.disabled = true;
+    opt.selected = true;
+    select.appendChild(opt);
+
+    if (addBtn) addBtn.disabled = true;
     return;
   }
 
-  const media = await res.json();
-  const select = document.getElementById("mediaSelect");
-  select.innerHTML = "";
-
-  media.forEach((m) => {
+  media.forEach(m => {
     const opt = document.createElement("option");
     opt.value = m.id;
     opt.textContent = `${m.id} — ${m.filename}`;
     select.appendChild(opt);
   });
+
+  if (addBtn) addBtn.disabled = false;
 }
 
 async function loadItems() {
@@ -416,43 +426,47 @@ async function loadItems() {
 }
 
 async function addItem() {
-  const mediaSelect = document.getElementById("mediaSelect");
+  const select = document.getElementById("mediaSelect");
   const durationInput = document.getElementById("durationInput");
 
-  const mediaId = Number(mediaSelect.value);
+  if (!select || !durationInput) {
+    alert("Interne fout: element niet gevonden.");
+    return;
+  }
+
+  const rawMediaId = select.value;
+  if (!rawMediaId) {
+    alert("Selecteer eerst een media-item.");
+    return;
+  }
+
+  const mediaId = Number(rawMediaId);
   const durationSec = Number(durationInput.value);
 
-  if (!mediaId || Number.isNaN(mediaId)) {
-    alert("Kies eerst een mediabestand.");
+  if (!Number.isFinite(mediaId) || mediaId <= 0) {
+    alert("Ongeldige media-id. Selecteer een geldig item.");
     return;
   }
 
-  if (!durationSec || Number.isNaN(durationSec) || durationSec <= 0) {
-    alert("Geef een geldige duur in seconden op.");
+  if (!Number.isFinite(durationSec) || durationSec <= 0) {
+    alert("Duur moet groter zijn dan 0 seconden.");
     return;
   }
 
-  try {
-    const resp = await fetch(`/api/admin/playlists/${playlistId}/items`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mediaId, durationSec }),
-    });
+  const resp = await fetch(`/api/admin/playlists/${playlistId}/items`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mediaId, durationSec })
+  });
 
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => "");
-      console.error("Fout bij toevoegen playlist-item:", resp.status, text);
-      alert("Item kon niet worden toegevoegd (serverfout). Zie console voor details.");
-      return;
-    }
-
-    await loadItems();
-  } catch (err) {
-    console.error("Netwerkfout bij toevoegen playlist-item:", err);
-    alert(
-      "Netwerkfout bij toevoegen van item. Controleer de verbinding."
-    );
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    console.error("Fout bij toevoegen item:", resp.status, text);
+    alert("Fout bij toevoegen item. Zie console voor details.");
+    return;
   }
+
+  await loadItems();
 }
 
 async function deleteItem(id) {
