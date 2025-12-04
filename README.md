@@ -79,7 +79,7 @@ npm run dev
 ### 4. Start de player  
 Open in je browser:
 ```
-http://localhost:3000/player.html
+https://signage-lite.onrender.com/player.html
 ```
 
 ---
