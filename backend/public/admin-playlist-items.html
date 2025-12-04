@@ -255,20 +255,21 @@ const playlistId = params.get("playlistId");
 const tenantId = params.get("tenantId");
 const playerId = params.get("playerId");
 
-document.getElementById("playlistIdLabel").textContent = playlistId;
-document.getElementById("tenantIdLabel").textContent = tenantId;
-document.getElementById("playerIdLabel").textContent = playerId;
-
 let currentItems = [];
 
 async function loadMedia() {
   const res = await fetch(`/api/admin/tenants/${tenantId}/media`);
-  const media = await res.json();
+  if (!res.ok) {
+    console.error("Fout bij laden media:", res.status, await res.text());
+    alert("Kon media niet laden. Zie console voor details.");
+    return;
+  }
 
+  const media = await res.json();
   const select = document.getElementById("mediaSelect");
   select.innerHTML = "";
 
-  media.forEach(m => {
+  media.forEach((m) => {
     const opt = document.createElement("option");
     opt.value = m.id;
     opt.textContent = `${m.id} — ${m.filename}`;
@@ -278,6 +279,12 @@ async function loadMedia() {
 
 async function loadItems() {
   const res = await fetch(`/api/admin/playlists/${playlistId}/items`);
+  if (!res.ok) {
+    console.error("Fout bij laden items:", res.status, await res.text());
+    alert("Kon playlist-items niet laden. Zie console voor details.");
+    return;
+  }
+
   const items = await res.json();
 
   // sorteren op sortOrder, zodat de UI netjes is
@@ -319,10 +326,10 @@ async function loadItems() {
 
     const opts = [
       { value: "NONE", label: "Geen" },
-      { value: "FADE", label: "Fade" }
+      { value: "FADE", label: "Fade" },
     ];
 
-    opts.forEach(opt => {
+    opts.forEach((opt) => {
       const o = document.createElement("option");
       o.value = opt.value;
       o.textContent = opt.label;
@@ -342,9 +349,10 @@ async function loadItems() {
     inp.min = "0";
     inp.max = "10";
     inp.step = "0.1";
-    const ms = typeof item.transitionDurationMs === "number"
-      ? item.transitionDurationMs
-      : 1000; // default 1s
+    const ms =
+      typeof item.transitionDurationMs === "number"
+        ? item.transitionDurationMs
+        : 1000; // default 1s
     inp.value = (ms / 1000).toFixed(1);
     tdTransitionDuration.appendChild(inp);
     row.appendChild(tdTransitionDuration);
@@ -360,14 +368,17 @@ async function loadItems() {
       const sec = parseFloat(inp.value || "0") || 0;
       const newMs = Math.round(sec * 1000);
 
-      const resp = await fetch(`/api/admin/playlist-items/${item.id}/transition`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transitionType: newType,
-          transitionDurationMs: newMs
-        })
-      });
+      const resp = await fetch(
+        `/api/admin/playlist-items/${item.id}/transition`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transitionType: newType,
+            transitionDurationMs: newMs,
+          }),
+        }
+      );
 
       if (!resp.ok) {
         alert("Fout bij opslaan transitie.");
@@ -405,23 +416,50 @@ async function loadItems() {
 }
 
 async function addItem() {
-  const mediaId = Number(document.getElementById("mediaSelect").value);
-  const durationSec = Number(document.getElementById("durationInput").value);
+  const mediaSelect = document.getElementById("mediaSelect");
+  const durationInput = document.getElementById("durationInput");
 
-  await fetch(`/api/admin/playlists/${playlistId}/items`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mediaId, durationSec })
-  });
+  const mediaId = Number(mediaSelect.value);
+  const durationSec = Number(durationInput.value);
 
-  loadItems();
+  if (!mediaId || Number.isNaN(mediaId)) {
+    alert("Kies eerst een mediabestand.");
+    return;
+  }
+
+  if (!durationSec || Number.isNaN(durationSec) || durationSec <= 0) {
+    alert("Geef een geldige duur in seconden op.");
+    return;
+  }
+
+  try {
+    const resp = await fetch(`/api/admin/playlists/${playlistId}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mediaId, durationSec }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => "");
+      console.error("Fout bij toevoegen playlist-item:", resp.status, text);
+      alert("Item kon niet worden toegevoegd (serverfout). Zie console voor details.");
+      return;
+    }
+
+    await loadItems();
+  } catch (err) {
+    console.error("Netwerkfout bij toevoegen playlist-item:", err);
+    alert(
+      "Netwerkfout bij toevoegen van item. Controleer de verbinding."
+    );
+  }
 }
 
 async function deleteItem(id) {
   if (!confirm("Item verwijderen?")) return;
 
   await fetch(`/api/admin/playlist-items/${id}`, {
-    method: "DELETE"
+    method: "DELETE",
   });
 
   loadItems();
@@ -442,11 +480,11 @@ async function applyReorder() {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      order: currentItems.map(item => ({
+      order: currentItems.map((item) => ({
         id: item.id,
-        sortOrder: item.sortOrder
-      }))
-    })
+        sortOrder: item.sortOrder,
+      })),
+    }),
   });
 
   loadItems();
@@ -464,10 +502,33 @@ function moveDown(index) {
   applyReorder();
 }
 
-(async function init() {
+async function init() {
   await loadMedia();
   await loadItems();
-})();
+}
+
+// --- Startpunt: controleer of alle parameters aanwezig zijn ---
+if (!playlistId || !tenantId || !playerId) {
+  const main = document.querySelector("main");
+  if (main) {
+    main.innerHTML = `
+      <h1>Playlist items</h1>
+      <p class="lead">
+        Deze pagina mist één of meer verplichte parameters (playlistId, tenantId of playerId).<br>
+        Open deze pagina via het Playlists-overzicht in de admin om de juiste gegevens mee te geven.
+      </p>
+      <p style="color:#9a9a9a; font-size:13px; margin-top:12px;">
+        Huidige URL: ${window.location.pathname}${window.location.search}
+      </p>
+    `;
+  }
+} else {
+  document.getElementById("playlistIdLabel").textContent = playlistId;
+  document.getElementById("tenantIdLabel").textContent = tenantId;
+  document.getElementById("playerIdLabel").textContent = playerId;
+
+  init();
+}
 </script>
 
 </body>

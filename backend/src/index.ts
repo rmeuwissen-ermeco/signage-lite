@@ -418,6 +418,9 @@ app.delete("/api/admin/players/:id", async (req, res) => {
 app.get("/api/admin/tenants/:tenantId/media", async (req, res) => {
   try {
     const tenantId = Number(req.params.tenantId);
+    if (isNaN(tenantId)) {
+      return res.status(400).json({ error: "Ongeldige tenant-id" });
+    }
 
     const media = await prisma.mediaAsset.findMany({
       where: { tenantId },
@@ -434,6 +437,9 @@ app.get("/api/admin/tenants/:tenantId/media", async (req, res) => {
 app.post("/api/admin/tenants/:tenantId/media", async (req, res) => {
   try {
     const tenantId = Number(req.params.tenantId);
+    if (isNaN(tenantId)) {
+      return res.status(400).json({ error: "Ongeldige tenant-id" });
+    }
 
     const { filename, url, mimeType, mediaType, sizeBytes } = req.body;
 
@@ -464,6 +470,9 @@ app.post("/api/admin/tenants/:tenantId/media", async (req, res) => {
 app.delete("/api/admin/media/:id", async (req, res) => {
   try {
     const mediaId = Number(req.params.id);
+    if (isNaN(mediaId)) {
+      return res.status(400).json({ error: "Ongeldige media-id" });
+    }
 
     await prisma.$transaction([
       prisma.playlistItem.deleteMany({
@@ -768,6 +777,9 @@ app.post("/api/admin/playlists/:id/fit-mode", async (req, res) => {
 app.get("/api/admin/playlists/:playlistId/items", async (req, res) => {
   try {
     const playlistId = Number(req.params.playlistId);
+    if (isNaN(playlistId)) {
+      return res.status(400).json({ error: "Ongeldige playlist-id" });
+    }
 
     const items = await prisma.playlistItem.findMany({
       where: { playlistId },
@@ -785,6 +797,10 @@ app.get("/api/admin/playlists/:playlistId/items", async (req, res) => {
 app.post("/api/admin/playlists/:playlistId/items", async (req, res) => {
   try {
     const playlistId = Number(req.params.playlistId);
+    if (isNaN(playlistId)) {
+      return res.status(400).json({ error: "Ongeldige playlist-id" });
+    }
+
     const { mediaId, durationSec } = req.body;
 
     if (!mediaId) {
@@ -822,6 +838,9 @@ app.post("/api/admin/playlists/:playlistId/items", async (req, res) => {
 app.delete("/api/admin/playlist-items/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Ongeldige playlist-item-id" });
+    }
 
     const item = await prisma.playlistItem.findUnique({ where: { id } });
     if (!item) {
@@ -845,6 +864,10 @@ app.delete("/api/admin/playlist-items/:id", async (req, res) => {
 app.put("/api/admin/playlists/:playlistId/reorder", async (req, res) => {
   try {
     const playlistId = Number(req.params.playlistId);
+    if (isNaN(playlistId)) {
+      return res.status(400).json({ error: "Ongeldige playlist-id" });
+    }
+
     const { order } = req.body;
 
     if (!Array.isArray(order)) {

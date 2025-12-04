@@ -200,6 +200,22 @@
       <!-- Playback scherm -->
       <div id="playbackScreen">
         <div id="mediaContainer">
+          <!-- Melding bij lege / ontbrekende playlist -->
+          <div id="emptyPlaylistMessage" style="
+                position: absolute;
+                inset: 0;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                padding: 20px;
+                background: #000;
+                color: #fff;
+                font-size: 18px;
+              ">
+            Er is nog geen content beschikbaar voor deze player. Voeg media toe in het admin panel.
+          </div>
+          
           <!-- Layer A -->
           <div class="slideLayer active" id="layerA">
             <img id="imageA" style="display: none" />
@@ -211,6 +227,7 @@
               loop
             ></video>
           </div>
+
           <!-- Layer B -->
           <div class="slideLayer" id="layerB">
             <img id="imageB" style="display: none" />
@@ -243,6 +260,21 @@
 
       const debugOverlay = document.getElementById("debugOverlay");
       const debugTextEl = document.getElementById("debugText");
+      const emptyPlaylistMessageEl = document.getElementById("emptyPlaylistMessage");
+
+      function showEmptyPlaylistMessage(text) {
+        if (!emptyPlaylistMessageEl) return;
+        emptyPlaylistMessageEl.textContent =
+          text ||
+          "Er is nog geen content beschikbaar voor deze player. Voeg media toe in het admin panel.";
+        emptyPlaylistMessageEl.style.display = "flex";
+        clearPlaybackTimer();
+      }
+
+      function hideEmptyPlaylistMessage() {
+        if (!emptyPlaylistMessageEl) return;
+        emptyPlaylistMessageEl.style.display = "none";
+      }
 
       const layerA = {
         root: document.getElementById("layerA"),
@@ -266,13 +298,15 @@
       let currentIndex = 0;
       let playbackTimer = null;
       let playlistPollTimer = null;
-      let lastPlaylistVersion = 0;
+      let lastPlaylistVersion = null; // nog geen playlist verwerkt
 
       const imageCache = new Map();
       const videoCache = new Map();
 
-      const ENV =
-        window.location.hostname === "localhost" ? "development" : "production";
+      const DEV_HOSTS = ["localhost", "127.0.0.1"];
+      const ENV = DEV_HOSTS.includes(window.location.hostname)
+        ? "development"
+        : "production";
 
       // URL param: ?reset=1 => koppeling wissen
       const urlParams = new URLSearchParams(window.location.search);
@@ -581,16 +615,29 @@
       }
 
       function startPlaybackWithPlaylist(playlist) {
-        currentPlaylist = playlist;
-        currentIndex = 0;
-        showPlaybackScreen();
-        hideLoadingOverlay();
-        updateDebugOverlay();
-        showSlide(0);
+          currentPlaylist = playlist;
+          currentIndex = 0;
+          showPlaybackScreen();
+          hideLoadingOverlay();
+          hideEmptyPlaylistMessage();
+
+          if (!playlist || !Array.isArray(playlist.items) || playlist.items.length === 0) {
+           const hasName = !!playlist?.playlistName;
+           const msg = hasName
+              ? `Playlist "${playlist.playlistName}" bevat nog geen items. Voeg media toe in het admin panel.`
+              : "Er is nog geen actieve playlist of er zijn nog geen items toegevoegd.";
+           showEmptyPlaylistMessage(msg);
+           updateDebugOverlay({ message: "Actieve playlist zonder items" });
+           return;
+          }
+
+          updateDebugOverlay();
+          showSlide(0);
       }
 
+
       // ---------- Playlist polling ----------
-      async function fetchAndMaybeUpdatePlaylist() {
+            async function fetchAndMaybeUpdatePlaylist() {
         if (!deviceToken) {
           console.warn("Geen deviceToken beschikbaar, kan playlist niet ophalen.");
           return;
@@ -615,23 +662,40 @@
           const data = await res.json();
 
           if (!data || !Array.isArray(data.items)) {
-            console.warn("Playlist zonder items ontvangen");
+            console.warn("Playlist-response zonder geldige items-array");
+            updateDebugOverlay({ message: "Geen geldige playlist ontvangen" });
+            hideLoadingOverlay();
             return;
           }
 
-          if (data.version === lastPlaylistVersion) {
+          const isFirstLoad = lastPlaylistVersion === null;
+          if (!isFirstLoad && data.version === lastPlaylistVersion) {
+            // Niets veranderd
             return;
           }
 
-          console.log("Nieuwe playlist-versie:", data.version);
-          lastPlaylistVersion = data.version;
+          lastPlaylistVersion =
+            typeof data.version === "number" ? data.version : 0;
 
           clearPlaybackTimer();
           showLoadingOverlay();
+
           if (loadingTextEl) {
-            loadingTextEl.textContent =
-              "Player is content aan het downloaden…";
+            if (data.items.length === 0) {
+              loadingTextEl.textContent =
+                "Geen content gevonden voor deze player. Voeg media toe in het admin panel.";
+            } else {
+              loadingTextEl.textContent =
+                "Player is content aan het downloaden…";
+            }
           }
+
+          if (data.items.length === 0) {
+            // Lege maar geldige playlist: geen preload, direct melding tonen
+            startPlaybackWithPlaylist(data);
+            return;
+          }
+
           updateDebugOverlay({ message: "Nieuwe playlist wordt geladen…" });
 
           await preloadPlaylistMedia(data);
