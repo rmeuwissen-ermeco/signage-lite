@@ -1,17 +1,25 @@
 import express from "express";
 import crypto from "crypto";
-import multer from "multer";
 import prisma from "./prisma";
 import { deviceAuth, DeviceRequest } from "./deviceAuth";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-const upload = multer({ dest: "uploads" });
+const uploadDir = path.join(__dirname, "..", "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const upload = multer({ dest: uploadDir });
 
 app.use(express.json());
 app.use(express.static("public"));
 app.use("/uploads", express.static("uploads"));
+
 
 // Root (optioneel)
 app.get("/", (_req, res) => {
@@ -842,7 +850,7 @@ app.post("/api/admin/playlists/:playlistId/items", async (req, res) => {
 app.post("/api/admin/media/upload", upload.single("file"), async (req, res) => {
   try {
     const { tenantId } = req.body;
-    const file = req.file;
+    const file = (req as any).file;
 
     if (!tenantId || !file) {
       return res.status(400).json({ error: "tenantId en file zijn verplicht" });
