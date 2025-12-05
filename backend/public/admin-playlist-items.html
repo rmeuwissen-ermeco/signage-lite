@@ -172,6 +172,29 @@
       padding: 2px 6px;
     }
 
+    /* Thumbnail kolom */
+    .thumb-col {
+      width: 90px;
+    }
+
+    .thumb-wrapper {
+      width: 80px;
+      height: 45px;
+      background: #111;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .thumb-wrapper img {
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+    }
+
     .meta-row {
       margin-bottom: 16px;
       font-size: 12px;
@@ -236,6 +259,7 @@
     <thead>
       <tr>
         <th>Sort</th>
+        <th>Preview</th>
         <th>Media</th>
         <th>Type</th>
         <th>Duur</th>
@@ -303,7 +327,7 @@ async function loadItems() {
   const tbody = document.querySelector("#itemsTable tbody");
   tbody.innerHTML = "";
 
-  currentItems.forEach((item, index) => {
+    currentItems.forEach((item, index) => {
     const mediaName = item.media
       ? `${item.media.id} — ${item.media.filename}`
       : "(media ontbreekt)";
@@ -315,7 +339,36 @@ async function loadItems() {
     tdSort.textContent = item.sortOrder;
     row.appendChild(tdSort);
 
-    // Media
+    // Thumbnail / preview
+    const tdThumb = document.createElement("td");
+    tdThumb.className = "thumb-col";
+
+    const thumbWrapper = document.createElement("div");
+    thumbWrapper.className = "thumb-wrapper";
+
+    if (item.media && item.media.mediaType === "IMAGE") {
+      const img = document.createElement("img");
+      img.src = item.media.url;
+      img.alt = item.media.filename || "Media";
+      thumbWrapper.appendChild(img);
+    } else if (item.media && item.media.mediaType === "VIDEO") {
+      const span = document.createElement("span");
+      span.textContent = "VIDEO";
+      span.style.fontSize = "10px";
+      span.style.color = "var(--text-muted)";
+      thumbWrapper.appendChild(span);
+    } else {
+      const span = document.createElement("span");
+      span.textContent = "—";
+      span.style.fontSize = "10px";
+      span.style.color = "var(--text-muted)";
+      thumbWrapper.appendChild(span);
+    }
+
+    tdThumb.appendChild(thumbWrapper);
+    row.appendChild(tdThumb);
+
+    // Media naam
     const tdMedia = document.createElement("td");
     tdMedia.textContent = mediaName;
     row.appendChild(tdMedia);
