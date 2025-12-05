@@ -75,9 +75,15 @@ model Device {
   pairingCode    String?   // tijdelijke 6-cijferige code
   pairingExpires DateTime?
   deviceToken    String?   @unique
+
+  // 🔽 Heartbeat velden
+  lastSeenAt          DateTime?
+  lastPlaylistVersion Int?
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }
+
 
 model Playlist {
   id           Int            @id @default(autoincrement())
