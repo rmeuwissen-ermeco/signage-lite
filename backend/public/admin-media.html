@@ -178,6 +178,10 @@
       border-top: 1px solid var(--border-subtle);
       background: #111;
     }
+
+    img {
+      display:block;
+    }
   </style>
 </head>
 <body>
@@ -255,6 +259,7 @@
     <thead>
       <tr>
         <th>ID</th>
+        <th>Preview</th>
         <th>Bestandsnaam</th>
         <th>Type</th>
         <th>MIME</th>
@@ -304,8 +309,26 @@ async function loadMedia() {
   media.forEach(m => {
     const row = document.createElement("tr");
 
+    // thumbnail bepalen
+let thumb = "";
+if (m.mediaType === "IMAGE") {
+  thumb = `<img src="${m.url}" style="width:60px; height:auto; border-radius:4px;">`;
+} else if (m.mediaType === "VIDEO") {
+  thumb = `<div style="
+    width:60px; height:34px;
+    background:#222;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:10px;
+    color:#aaa;
+    border-radius:4px;
+  ">VIDEO</div>`;
+}
+
     row.innerHTML = `
       <td>${m.id}</td>
+      <td>${thumb}</td>
       <td>${m.filename}</td>
       <td>${m.mediaType}</td>
       <td>${m.mimeType}</td>
