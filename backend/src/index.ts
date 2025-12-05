@@ -565,7 +565,16 @@ app.get("/api/device/playlist", deviceAuth, async (req: DeviceRequest, res) => {
       },
     });
 
+    // 🔽 Heartbeat bij géén playlist
     if (!playlist) {
+      await prisma.device.update({
+        where: { id: device.id },
+        data: {
+          lastSeenAt: new Date(),
+          lastPlaylistVersion: 0,
+        },
+      });
+
       return res.json({
         playerId: device.playerId,
         playerName: null,
@@ -587,6 +596,15 @@ app.get("/api/device/playlist", deviceAuth, async (req: DeviceRequest, res) => {
       transitionType: item.transitionType ?? "NONE",
       transitionDurationMs: item.transitionDurationMs ?? 1000,
     }));
+
+    // 🔽 Heartbeat bij wél een playlist
+    await prisma.device.update({
+      where: { id: device.id },
+      data: {
+        lastSeenAt: new Date(),
+        lastPlaylistVersion: playlist.version ?? 0,
+      },
+    });
 
     return res.json({
       playerId: device.playerId,
