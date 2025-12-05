@@ -304,6 +304,7 @@
       type="file"
       id="uploadFile"
       accept="image/*,video/*"
+      multiple
       style="display:none;"
     />
   </div>
@@ -466,28 +467,42 @@ async function loadMedia() {
 
 /**
  * Upload van media.
- * - Kan worden aangeroepen zonder argument (neemt file uit input)
- * - Of met een File object (bij drag & drop)
+ * - Kan worden aangeroepen met een FileList / array (drag & drop)
+ * - Of zonder argument (pakt bestanden uit de file input)
  */
-async function uploadMedia(fileFromDrop) {
+async function uploadMedia(fileList) {
   const tenantSelect = document.getElementById("tenantSelect");
   const fileInput = document.getElementById("uploadFile");
 
   const tenantId = tenantSelect.value;
-  const file = fileFromDrop || (fileInput.files && fileInput.files[0]);
 
   if (!tenantId) {
     alert("Selecteer eerst een tenant.");
     return;
   }
-  if (!file) {
-    alert("Kies eerst een bestand.");
+
+  // Verzamel bestanden uit argument of uit de input
+  const files = [];
+  if (fileList && fileList.length) {
+    for (let i = 0; i < fileList.length; i++) {
+      files.push(fileList[i]);
+    }
+  } else if (fileInput.files && fileInput.files.length) {
+    for (let i = 0; i < fileInput.files.length; i++) {
+      files.push(fileInput.files[i]);
+    }
+  }
+
+  if (files.length === 0) {
+    alert("Geen bestanden geselecteerd.");
     return;
   }
 
   const formData = new FormData();
   formData.append("tenantId", tenantId);
-  formData.append("file", file);
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
 
   const resp = await fetch("/api/admin/media/upload", {
     method: "POST",
@@ -503,7 +518,7 @@ async function uploadMedia(fileFromDrop) {
 
   await loadMedia();
 
-  // reset input voor volgende upload
+  // input resetten
   fileInput.value = "";
 }
 
@@ -577,10 +592,10 @@ function initUploadUI() {
     fileInput.click();
   });
 
-  // Wanneer via de file input een bestand gekozen is
+  // Bestanden gekozen via de file input
   fileInput.addEventListener("change", () => {
-    if (fileInput.files && fileInput.files[0]) {
-      uploadMedia(); // pakt bestand uit input
+    if (fileInput.files && fileInput.files.length > 0) {
+      uploadMedia(fileInput.files); // meerdere bestanden
     }
   });
 
@@ -597,17 +612,19 @@ function initUploadUI() {
     dropZone.addEventListener(eventName, (e) => {
       e.preventDefault();
       e.stopPropagation();
-      dropZone.classList.remove("dragover");
+      if (eventName !== "drop") {
+        dropZone.classList.remove("dragover");
+      }
     });
   });
 
   dropZone.addEventListener("drop", (e) => {
+    dropZone.classList.remove("dragover");
     const dt = e.dataTransfer;
-    if (!dt || !dt.files || dt.files.length === 0) {
-      return;
-    }
-    const file = dt.files[0];
-    uploadMedia(file);
+    if (!dt || !dt.files || dt.files.length === 0) return;
+
+    // alle bestanden in één keer uploaden
+    uploadMedia(dt.files);
   });
 }
 

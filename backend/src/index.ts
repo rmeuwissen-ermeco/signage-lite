@@ -865,50 +865,60 @@ app.post("/api/admin/playlists/:playlistId/items", async (req, res) => {
   }
 });
 
-app.post("/api/admin/media/upload", upload.single("file"), async (req, res) => {
-  try {
-    const { tenantId } = req.body;
-    const file = (req as any).file;
+app.post(
+  "/api/admin/media/upload",
+  upload.array("files", 20),
+  async (req, res) => {
+    try {
+      const { tenantId } = req.body as { tenantId?: string };
+      const files = (req as any).files as Express.Multer.File[] | undefined;
 
-    if (!tenantId || !file) {
-      return res.status(400).json({ error: "tenantId en file zijn verplicht" });
+      if (!tenantId || !files || files.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "tenantId en minimaal één bestand zijn verplicht" });
+      }
+
+      const tenantIdNum = Number(tenantId);
+      if (!Number.isFinite(tenantIdNum)) {
+        return res.status(400).json({ error: "Ongeldige tenantId" });
+      }
+
+      const createdAssets = [];
+
+      for (const file of files) {
+        const mimeType = file.mimetype || "application/octet-stream";
+        let mediaType: "IMAGE" | "VIDEO" = "IMAGE";
+
+        if (mimeType.startsWith("video/")) {
+          mediaType = "VIDEO";
+        } else if (!mimeType.startsWith("image/")) {
+          // evt. later uitbreiden met extra types
+        }
+
+        const publicUrl = `/uploads/${file.filename}`;
+
+        const asset = await prisma.mediaAsset.create({
+          data: {
+            tenantId: tenantIdNum,
+            filename: file.originalname,
+            url: publicUrl,
+            mimeType,
+            mediaType,
+            sizeBytes: file.size,
+          },
+        });
+
+        createdAssets.push(asset);
+      }
+
+      res.status(201).json(createdAssets);
+    } catch (err) {
+      console.error("Fout bij media upload:", err);
+      res.status(500).json({ error: "Interne serverfout" });
     }
-
-    const tenantIdNum = Number(tenantId);
-    if (!Number.isFinite(tenantIdNum)) {
-      return res.status(400).json({ error: "Ongeldige tenantId" });
-    }
-
-    const mimeType = file.mimetype || "application/octet-stream";
-    let mediaType: "IMAGE" | "VIDEO" = "IMAGE";
-
-    if (mimeType.startsWith("video/")) {
-      mediaType = "VIDEO";
-    } else if (!mimeType.startsWith("image/")) {
-      // eventueel extra logica op extensie
-    }
-
-    // URL waarop het bestand publiek bereikbaar is
-    const publicUrl = `/uploads/${file.filename}`;
-
-    const asset = await prisma.mediaAsset.create({
-      data: {
-        tenantId: tenantIdNum,
-        filename: file.originalname,
-        url: publicUrl,
-        mimeType,
-        mediaType,
-        sizeBytes: file.size,
-      },
-    });
-
-    res.status(201).json(asset);
-  } catch (err) {
-    console.error("Fout bij media upload:", err);
-    res.status(500).json({ error: "Interne serverfout" });
   }
-});
-
+);
 
 app.delete("/api/admin/playlist-items/:id", async (req, res) => {
   try {
