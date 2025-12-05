@@ -217,6 +217,7 @@
         <th>Locatie</th>
         <th>Scherm</th>
         <th>Device</th>
+        <th>Laatst gezien</th>
         <th>Pairing</th>
         <th>Acties</th>
       </tr>
@@ -272,12 +273,19 @@ async function loadPlayers() {
       screenInfo = `${p.screenWidth}×${p.screenHeight}`;
     }
 
+    // lastSeenAt formatteren
+    let lastSeenLabel = "—";
+    if (p.device && p.device.lastSeenAt) {
+      const d = new Date(p.device.lastSeenAt);
+      lastSeenLabel = d.toLocaleString("nl-NL");
+    }
     row.innerHTML = `
       <td>${p.id}</td>
       <td>${p.name}</td>
-      <td>${p.location || ""}</td>
+      <td>${p.location ?? ""}</td>
       <td>${screenInfo}</td>
       <td>${deviceInfo}</td>
+      <td>${lastSeenLabel}</td>
       <td>
         <input
           type="text"
