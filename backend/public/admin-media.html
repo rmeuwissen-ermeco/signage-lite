@@ -170,17 +170,86 @@
       word-break: break-all;
     }
 
+    /* Thumbnail kolom in tabel */
+    .thumb-col {
+      width: 90px;
+    }
+
+    .thumb-wrapper {
+      width: 80px;
+      height: 45px;
+      background: #111;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .thumb-wrapper img {
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+    }
+
+    /* Drag & drop upload */
+    .upload-section {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 6px;
+      background: #121212;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .upload-section h3 {
+      margin: 0 0 6px 0;
+      font-size: 14px;
+    }
+
+    .upload-section p {
+      margin: 0 0 10px 0;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .dropzone {
+      margin-top: 8px;
+      border: 1px dashed var(--border-subtle);
+      border-radius: 6px;
+      padding: 18px;
+      text-align: center;
+      cursor: pointer;
+      background: #111;
+      transition: border-color 0.15s ease, background 0.15s ease;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .dropzone strong {
+      color: var(--text-main);
+    }
+
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: #141b22;
+      color: var(--text-main);
+    }
+
+    .dropzone small {
+      display: block;
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
     footer {
       margin-top: auto;
       padding: 10px 20px;
       font-size: 11px;
       color: var(--text-muted);
       border-top: 1px solid var(--border-subtle);
-      background: #111;
-    }
-
-    img {
-      display:block;
+      background: #0f0f0f;
     }
   </style>
 </head>
@@ -203,15 +272,44 @@
 <main>
   <h1>Media</h1>
   <p class="lead">
-    Media is gekoppeld aan een tenant en wordt gebruikt in playlists. Je kunt media toevoegen via een externe URL of door een bestand te uploaden.
+    Media is gekoppeld aan een tenant en wordt gebruikt in playlists.
+    Je kunt bestanden uploaden of een externe URL koppelen.
   </p>
 
-  <h2>1. Tenant & nieuwe media via URL</h2>
+  <h2>1. Tenant & nieuwe media</h2>
 
-  <label>Tenant:</label>
-  <select id="tenantSelect"></select>
+  <div style="margin-bottom:12px;">
+    <label for="tenantSelect">Tenant:</label>
+    <select id="tenantSelect"></select>
+  </div>
 
-  <br><br>
+  <!-- 1A. Upload via drag & drop / klik -->
+  <div class="upload-section">
+    <h3>Upload bestand</h3>
+    <p>
+      Sleep een afbeelding of video in het vak hieronder, of klik om een bestand te kiezen.
+    </p>
+
+    <div
+      id="dropZone"
+      class="dropzone"
+    >
+      <strong>Sleep een bestand hierheen</strong><br>
+      of klik om een bestand te selecteren
+      <small>Ondersteund: afbeeldingen en video’s</small>
+    </div>
+
+    <!-- Verborgen file input; wordt gebruikt door klik & drop -->
+    <input
+      type="file"
+      id="uploadFile"
+      accept="image/*,video/*"
+      style="display:none;"
+    />
+  </div>
+
+  <!-- 1B. Handmatige URL -->
+  <h2>2. Media via URL toevoegen</h2>
 
   <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end;">
     <div>
@@ -238,22 +336,7 @@
     </div>
   </div>
 
-  <h2>1b. Media uploaden</h2>
-  <p class="lead">
-    Upload een bestand; het wordt automatisch gekoppeld aan de geselecteerde tenant. De player haalt dit bestand via de /uploads/ URL op.
-  </p>
-
-  <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-bottom:16px;">
-    <div>
-      <label for="uploadFile">Bestand uploaden</label><br>
-      <input type="file" id="uploadFile" />
-    </div>
-    <div>
-      <button onclick="uploadMedia()">Uploaden</button>
-    </div>
-  </div>
-
-  <h2>2. Bestaande media</h2>
+  <h2>3. Bestaande media</h2>
 
   <table id="mediaTable">
     <thead>
@@ -272,17 +355,18 @@
 </main>
 
 <footer>
-  Signage Lite v0.3 – media
+  Signage Lite – mediabeheer
 </footer>
 
 <script>
 async function loadTenants() {
   const res = await fetch("/api/admin/tenants");
   const tenants = await res.json();
-  const select = document.getElementById("tenantSelect");
 
+  const select = document.getElementById("tenantSelect");
   select.innerHTML = "";
-  tenants.forEach(t => {
+
+  tenants.forEach((t) => {
     const opt = document.createElement("option");
     opt.value = t.id;
     opt.textContent = t.name;
@@ -294,10 +378,7 @@ async function loadTenants() {
 }
 
 async function loadMedia() {
-  const tenantSelect = document.getElementById("tenantSelect");
-  if (!tenantSelect) return;
-
-  const tenantId = tenantSelect.value;
+  const tenantId = document.getElementById("tenantSelect").value;
   if (!tenantId) return;
 
   const res = await fetch(`/api/admin/tenants/${tenantId}/media`);
@@ -306,57 +387,94 @@ async function loadMedia() {
   const tbody = document.querySelector("#mediaTable tbody");
   tbody.innerHTML = "";
 
-  media.forEach(m => {
+  media.forEach((m) => {
     const row = document.createElement("tr");
 
-    // thumbnail bepalen
-let thumb = "";
-if (m.mediaType === "IMAGE") {
-  thumb = `<img src="${m.url}" style="width:60px; height:auto; border-radius:4px;">`;
-} else if (m.mediaType === "VIDEO") {
-  thumb = `<div style="
-    width:60px; height:34px;
-    background:#222;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:10px;
-    color:#aaa;
-    border-radius:4px;
-  ">VIDEO</div>`;
-}
+    // ID
+    const tdId = document.createElement("td");
+    tdId.textContent = m.id;
+    row.appendChild(tdId);
 
-    row.innerHTML = `
-      <td>${m.id}</td>
-      <td>${thumb}</td>
-      <td>${m.filename}</td>
-      <td>${m.mediaType}</td>
-      <td>${m.mimeType}</td>
-      <td class="url-cell">
-        <a href="${m.url}" target="_blank" style="color: var(--accent); text-decoration:none;">
-          ${m.url}
-        </a>
-      </td>
-      <td>
-        <button class="danger" onclick="deleteMedia(${m.id})">Verwijderen</button>
-      </td>
-    `;
+    // Preview
+    const tdThumb = document.createElement("td");
+    tdThumb.className = "thumb-col";
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "thumb-wrapper";
+
+    if (m.mediaType === "IMAGE") {
+      const img = document.createElement("img");
+      img.src = m.url;
+      img.alt = m.filename || "Media";
+      wrapper.appendChild(img);
+    } else if (m.mediaType === "VIDEO") {
+      const span = document.createElement("span");
+      span.textContent = "VIDEO";
+      span.style.fontSize = "10px";
+      span.style.color = "var(--text-muted)";
+      wrapper.appendChild(span);
+    } else {
+      const span = document.createElement("span");
+      span.textContent = "—";
+      span.style.fontSize = "10px";
+      span.style.color = "var(--text-muted)";
+      wrapper.appendChild(span);
+    }
+
+    tdThumb.appendChild(wrapper);
+    row.appendChild(tdThumb);
+
+    // Bestandsnaam
+    const tdFilename = document.createElement("td");
+    tdFilename.textContent = m.filename;
+    row.appendChild(tdFilename);
+
+    // Type
+    const tdType = document.createElement("td");
+    tdType.textContent = m.mediaType;
+    row.appendChild(tdType);
+
+    // MIME
+    const tdMime = document.createElement("td");
+    tdMime.textContent = m.mimeType;
+    row.appendChild(tdMime);
+
+    // URL
+    const tdUrl = document.createElement("td");
+    tdUrl.className = "url-cell";
+    const a = document.createElement("a");
+    a.href = m.url;
+    a.target = "_blank";
+    a.textContent = m.url;
+    a.style.color = "var(--accent)";
+    a.style.textDecoration = "none";
+    tdUrl.appendChild(a);
+    row.appendChild(tdUrl);
+
+    // Acties
+    const tdActions = document.createElement("td");
+    const btn = document.createElement("button");
+    btn.className = "danger";
+    btn.textContent = "Verwijderen";
+    btn.onclick = () => deleteMedia(m.id);
+    tdActions.appendChild(btn);
+    row.appendChild(tdActions);
 
     tbody.appendChild(row);
   });
 }
 
-async function uploadMedia() {
+/**
+ * Upload van media.
+ * - Kan worden aangeroepen zonder argument (neemt file uit input)
+ * - Of met een File object (bij drag & drop)
+ */
+async function uploadMedia(fileFromDrop) {
   const tenantSelect = document.getElementById("tenantSelect");
   const fileInput = document.getElementById("uploadFile");
 
-  if (!tenantSelect || !fileInput) {
-    alert("Interne fout: velden niet gevonden.");
-    return;
-  }
-
   const tenantId = tenantSelect.value;
-  const file = fileInput.files[0];
+  const file = fileFromDrop || (fileInput.files && fileInput.files[0]);
 
   if (!tenantId) {
     alert("Selecteer eerst een tenant.");
@@ -384,9 +502,14 @@ async function uploadMedia() {
   }
 
   await loadMedia();
+
+  // reset input voor volgende upload
   fileInput.value = "";
 }
 
+/**
+ * Media via URL registreren
+ */
 async function createMedia() {
   const tenantId = document.getElementById("tenantSelect").value;
   const filename = document.getElementById("filename").value.trim();
@@ -412,13 +535,14 @@ async function createMedia() {
   if (!resp.ok) {
     const text = await resp.text().catch(() => "");
     console.error("Fout bij aanmaken media:", resp.status, text);
-    alert("Fout bij aanmaken media. Zie console voor details.");
+    alert("Fout bij opslaan van media. Zie console voor details.");
     return;
   }
 
   document.getElementById("filename").value = "";
   document.getElementById("url").value = "";
   document.getElementById("mimeType").value = "";
+
   loadMedia();
 }
 
@@ -439,8 +563,57 @@ async function deleteMedia(id) {
   loadMedia();
 }
 
-// Start
+/**
+ * Drag & drop + klikgedrag initialiseren
+ */
+function initUploadUI() {
+  const dropZone = document.getElementById("dropZone");
+  const fileInput = document.getElementById("uploadFile");
+
+  if (!dropZone || !fileInput) return;
+
+  // Klik op de zone opent de bestandskiezer
+  dropZone.addEventListener("click", () => {
+    fileInput.click();
+  });
+
+  // Wanneer via de file input een bestand gekozen is
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files && fileInput.files[0]) {
+      uploadMedia(); // pakt bestand uit input
+    }
+  });
+
+  // Drag events
+  ["dragenter", "dragover"].forEach((eventName) => {
+    dropZone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.add("dragover");
+    });
+  });
+
+  ["dragleave", "dragend", "drop"].forEach((eventName) => {
+    dropZone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove("dragover");
+    });
+  });
+
+  dropZone.addEventListener("drop", (e) => {
+    const dt = e.dataTransfer;
+    if (!dt || !dt.files || dt.files.length === 0) {
+      return;
+    }
+    const file = dt.files[0];
+    uploadMedia(file);
+  });
+}
+
+// Init
 loadTenants();
+initUploadUI();
 </script>
 
 </body>
