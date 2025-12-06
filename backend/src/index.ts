@@ -257,6 +257,44 @@ app.delete("/api/admin/tenants/:id", async (req, res) => {
   }
 });
 
+/**
+ * Admin: storage per tenant opvragen
+ * Retourneert totaal aantal bytes en aantal media-items per tenant.
+ */
+app.get("/api/admin/tenants-storage", async (_req, res) => {
+  try {
+    const tenants = await prisma.tenant.findMany({
+      orderBy: { id: "asc" },
+      include: {
+        mediaAssets: {
+          select: {
+            sizeBytes: true,
+          },
+        },
+      },
+    });
+
+    const result = tenants.map((t) => {
+      const totalBytes = t.mediaAssets.reduce(
+        (sum, m) => sum + (m.sizeBytes ?? 0),
+        0
+      );
+
+      return {
+        tenantId: t.id,
+        tenantName: t.name,
+        totalBytes,
+        items: t.mediaAssets.length,
+      };
+    });
+
+    res.json(result);
+  } catch (e) {
+    console.error("Fout in /api/admin/tenants-storage:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
 /* -------------------------------------------------------------------------- */
 /*                                    PLAYERS                                 */
 /* -------------------------------------------------------------------------- */
@@ -280,6 +318,57 @@ app.get("/api/admin/tenants/:tenantId/players", async (req, res) => {
     res.json(players);
   } catch (e) {
     console.error("GET players:", e);
+    res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
+/**
+ * Admin: snelle status van alle players (laatste heartbeat).
+ */
+app.get("/api/admin/tenants/:tenantId/players-status", async (req, res) => {
+  try {
+    const tenantId = Number(req.params.tenantId);
+    if (Number.isNaN(tenantId)) {
+      return res.status(400).json({ error: "Ongeldige tenant-id" });
+    }
+
+    const players = await prisma.player.findMany({
+      where: { tenantId },
+      include: {
+        device: true,
+      },
+      orderBy: { id: "asc" },
+    });
+
+    const now = Date.now();
+
+    const result = players.map((p) => {
+      const lastSeen = p.device?.updatedAt ?? null;
+      let status: "OFFLINE" | "IDLE" | "ONLINE" = "OFFLINE";
+
+      if (lastSeen) {
+        const diffMs = now - lastSeen.getTime();
+        if (diffMs < 30_000) {
+          status = "ONLINE";
+        } else if (diffMs < 120_000) {
+          status = "IDLE";
+        } else {
+          status = "OFFLINE";
+        }
+      }
+
+      return {
+        playerId: p.id,
+        playerName: p.name,
+        deviceId: p.device?.id ?? null,
+        lastSeenAt: lastSeen ? lastSeen.toISOString() : null,
+        status,
+      };
+    });
+
+    res.json(result);
+  } catch (e) {
+    console.error("Fout in /api/admin/tenants/:tenantId/players-status:", e);
     res.status(500).json({ error: "Interne serverfout" });
   }
 });
@@ -543,6 +632,32 @@ app.post("/api/device/screen", deviceAuth, async (req: DeviceRequest, res) => {
   }
 });
 
+/**
+ * Heartbeat endpoint: player meldt zich periodiek.
+ * We gebruiken device.updatedAt als lastSeen.
+ */
+app.post("/api/device/heartbeat", deviceAuth, async (req: DeviceRequest, res) => {
+  try {
+    const device = req.device!;
+
+    // We updaten een veld zodat updatedAt refreshed wordt.
+    await prisma.device.update({
+      where: { id: device.id },
+      data: {
+        deviceName: device.deviceName ?? null,
+      },
+    });
+
+    return res.json({
+      ok: true,
+      serverTime: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error("Fout in /api/device/heartbeat:", e);
+    return res.status(500).json({ error: "Interne serverfout" });
+  }
+});
+
 /* -------------------------------------------------------------------------- */
 /*                           DEVICE PLAYLIST OPVRAGEN                          */
 /* -------------------------------------------------------------------------- */
@@ -630,13 +745,44 @@ app.get("/api/device/playlist", deviceAuth, async (req: DeviceRequest, res) => {
 app.get("/api/admin/players/:playerId/playlists", async (req, res) => {
   try {
     const playerId = Number(req.params.playerId);
+    if (Number.isNaN(playerId)) {
+      return res.status(400).json({ error: "Ongeldige player-id" });
+    }
 
     const playlists = await prisma.playlist.findMany({
       where: { playerId },
       orderBy: { id: "asc" },
+      include: {
+        items: {
+          include: { media: true },
+          orderBy: { sortOrder: "asc" },
+          take: 1, // alleen eerste item voor thumbnail
+        },
+      },
     });
 
-    res.json(playlists);
+    const mapped = playlists.map((p) => {
+      const firstItem = p.items[0];
+      const firstMedia = firstItem?.media;
+
+      return {
+        id: p.id,
+        playerId: p.playerId,
+        name: p.name,
+        isActive: p.isActive,
+        version: p.version,
+        designWidth: p.designWidth,
+        designHeight: p.designHeight,
+        fitMode: p.fitMode,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        // thumbnail-info
+        firstItemMediaType: firstMedia?.mediaType ?? null,
+        firstItemUrl: firstMedia?.url ?? null,
+      };
+    });
+
+    res.json(mapped);
   } catch (e) {
     console.error("GET playlists:", e);
     res.status(500).json({ error: "Interne serverfout" });
